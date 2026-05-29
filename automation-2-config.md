@@ -4,17 +4,17 @@
 
 ## 发送目标
 
-- 收件人：`jessica.wyn@gmail.com`
+- 收件人：`RECIPIENT_EMAIL`
 - 主题格式：`每日定制早报 - YYYY-MM-DD`
 - 时区：`America/Los_Angeles`
 - 发送规则：每个自然日最多发送一次；发送前先检查当天是否已发送同主题邮件
 
 ## 每次运行的前置步骤
 
-1. 先检查当天是否已向 `jessica.wyn@gmail.com` 发送过同主题邮件；如已发送则跳过。
+1. 先检查当天是否已向 `RECIPIENT_EMAIL` 发送过同主题邮件；如已发送则跳过。
 2. 在联网检索新闻前，先读取以下 Notion 页面最新内容：
-   - [股票分析](https://www.notion.so/27745461819d80c9af3dff8aa5921931)
-   - [AI 产业链与铲子股图谱](https://www.notion.so/36e45461819d81dfa169cc9a0229008a)
+   - `股票分析`（工作 Notion 页面）
+   - `AI 产业链与铲子股图谱`（工作 Notion 页面）
 3. 从 Notion 页面中提取当天有效的：
    - 优先 topic
    - 优先公司
@@ -60,14 +60,14 @@
 - 优先生成音频附件并随邮件发送
 - 当前本机稳定输出格式：`.aiff`
 - 发送前必须确认附件文件真实存在，再调用 Gmail 发送
-- 脚本：[`/Users/qingcai/Documents/Morning News/render_tts_audio.sh`](/Users/qingcai/Documents/Morning%20News/render_tts_audio.sh)
+- 脚本：`render_tts_audio.sh`
 
 ### 2. Notion 动态选题优先级
 
 参考页面：
 
-- [股票分析](https://www.notion.so/27745461819d80c9af3dff8aa5921931)
-- [AI 产业链与铲子股图谱](https://www.notion.so/36e45461819d81dfa169cc9a0229008a)
+- `股票分析`（工作 Notion 页面）
+- `AI 产业链与铲子股图谱`（工作 Notion 页面）
 
 说明：
 

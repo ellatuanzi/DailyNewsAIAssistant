@@ -87,4 +87,4 @@ node src/cli.js record-notion-update --page-id stock-analysis --page-title "่ก็
 ## Notes
 
 - The current repo includes the deployment skeleton and operational interfaces.
-- The existing local macOS TTS script remains available at [`/Users/qingcai/Documents/Morning News/render_tts_audio.sh`](/Users/qingcai/Documents/Morning%20News/render_tts_audio.sh), but Render cannot run macOS `say`. Online audio generation needs a cloud TTS replacement in a later phase.
+- The existing local macOS TTS script remains available at `render_tts_audio.sh`, but Render cannot run macOS `say`. Online audio generation needs a cloud TTS replacement in a later phase.

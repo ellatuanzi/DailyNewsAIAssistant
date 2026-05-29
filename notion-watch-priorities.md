@@ -2,8 +2,8 @@
 
 来源：
 
-- [股票分析](https://www.notion.so/27745461819d80c9af3dff8aa5921931)
-- [AI 产业链与铲子股图谱](https://www.notion.so/36e45461819d81dfa169cc9a0229008a)
+- `股票分析`（工作 Notion 页面）
+- `AI 产业链与铲子股图谱`（工作 Notion 页面）
 
 ## 每天优先看的主题
 

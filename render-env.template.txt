@@ -1,0 +1,18 @@
+# Render environment variables template
+# Fill in the right-hand side values locally.
+# Do not commit real secrets to a public repository.
+
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1
+
+GMAIL_CLIENT_ID=
+GMAIL_CLIENT_SECRET=
+GMAIL_REFRESH_TOKEN=
+GMAIL_SENDER=
+
+RECIPIENT_EMAIL=
+PENDING_SYNC_TO_EMAIL=
+
+TIMEZONE=America/Los_Angeles
+RESEARCH_DIR=./research
+APP_ENV=production

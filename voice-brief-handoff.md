@@ -2,8 +2,8 @@
 
 当前已具备的本地能力：
 
-- 中文播报稿转音频：[`/Users/qingcai/Documents/Morning News/render_tts_audio.sh`](/Users/qingcai/Documents/Morning%20News/render_tts_audio.sh)
-- 规范补充：[`/Users/qingcai/Documents/Morning News/automation-2-notes.md`](/Users/qingcai/Documents/Morning%20News/automation-2-notes.md)
+- 中文播报稿转音频：`render_tts_audio.sh`
+- 规范补充：`automation-2-notes.md`
 
 建议接入流程：
 

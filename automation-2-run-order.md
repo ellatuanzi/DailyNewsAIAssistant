@@ -2,8 +2,8 @@
 
 1. 检查 Gmail 是否已发送当天同主题邮件
 2. 读取 Notion 最新内容
-   - [股票分析](https://www.notion.so/27745461819d80c9af3dff8aa5921931)
-   - [AI 产业链与铲子股图谱](https://www.notion.so/36e45461819d81dfa169cc9a0229008a)
+   - `股票分析`（工作 Notion 页面）
+   - `AI 产业链与铲子股图谱`（工作 Notion 页面）
 3. 提取当天有效的 topic、公司和研究重点
 4. 联网检索过去 24 小时新闻，并按 Notion 最新重点筛选
    - 同时检索湾区最近 7-14 天是否有值得提醒的活动、展览或季节性去处
@@ -18,4 +18,4 @@
 9. 用 Gmail 实际发送
    - 若音频附件存在，必须作为附件一并发送
    - 若音频附件生成失败，正文仍发送，但邮件开头需注明“今日语音版生成失败”，并在任务输出中说明失败原因
-10. 若 Notion 读取失败，则回退到 [`/Users/qingcai/Documents/Morning News/automation-2-config.md`](/Users/qingcai/Documents/Morning%20News/automation-2-config.md) 中的默认配置
+10. 若 Notion 读取失败，则回退到 `automation-2-config.md` 中的默认配置
