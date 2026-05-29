@@ -1,0 +1,127 @@
+{
+  "title": "股票分析",
+  "sourcePageUrl": "https://www.notion.so/27745461819d80c9af3dff8aa5921931",
+  "lastUpdated": "2026-05-29",
+  "summary": "作为投资研究总入口，当前优先聚焦杠铃式资产配置、AI 产业链与铲子股、以及 UPS/Amazon Logistics/高股息研究。风险端核心偏向 VGT，AI 卫星仓位重点观察 SMH 与 AIPO，并延伸到云平台、半导体制造、数据中心物理层和物流竞争结构。",
+  "priorityTopics": [
+    "杠铃型投资框架：安全端与高弹性端",
+    "AI 产业链与铲子股",
+    "AI 物理层：电力、冷却、能源、材料与地产",
+    "AI ETF 布局：VGT、QQQM、VOO、SMH、AIPO",
+    "UPS / Amazon Logistics / 高股息研究",
+    "高股息股的现金流覆盖与 dividend safety"
+  ],
+  "priorityCompanies": [
+    "MSFT",
+    "AMZN",
+    "GOOGL",
+    "META",
+    "NVDA",
+    "AVGO",
+    "AMD",
+    "MRVL",
+    "TSM",
+    "ASML",
+    "MU",
+    "SK hynix",
+    "ANET",
+    "SMCI",
+    "DELL",
+    "VRT",
+    "ETN",
+    "GEV",
+    "CEG",
+    "VST",
+    "UPS"
+  ],
+  "preferredEtfs": [
+    "SGOV",
+    "VGT",
+    "VOO",
+    "QQQM",
+    "SMH",
+    "AIPO"
+  ],
+  "portfolioNotes": {
+    "barbellFramework": {
+      "safeAssets": [
+        "SGOV",
+        "T-bill",
+        "money market"
+      ],
+      "riskCore": [
+        "VGT"
+      ],
+      "riskSatellite": [
+        "QQQM",
+        "SMH",
+        "AIPO"
+      ],
+      "broadMarket": [
+        "VOO"
+      ]
+    },
+    "sampleAllocation": {
+      "SGOV / T-bill / Money Market": "50%",
+      "VGT": "20%",
+      "VOO": "12%",
+      "QQQM": "8%",
+      "SMH": "7%",
+      "AIPO": "3%"
+    }
+  },
+  "focusQuestions": [
+    "谁掌握 AI 产业链瓶颈与定价权？",
+    "GPU、ASIC、HBM、CoWoS、电力、网络谁更稀缺？",
+    "Physical AI 是否会成为下一阶段应用层主线？",
+    "ETF 暴露是否在重复押注 NVDA、AVGO、MSFT？",
+    "UPS 放弃低利润 Amazon 量后，能否变成更小但更赚钱的物流公司？",
+    "UPS 的股息是否安全，还是典型的 yield trap？"
+  ],
+  "readingOrder": [
+    "股票分析基础：方法、常识与重要指标",
+    "杠铃型投资框架：安全端与高弹性端",
+    "AI 产业链与铲子股图谱",
+    "UPS 个股投资分析"
+  ],
+  "researchExtensions": [
+    "NVIDIA",
+    "Broadcom",
+    "AMD",
+    "Marvell",
+    "TSMC",
+    "ASML",
+    "Micron",
+    "Arista",
+    "Supermicro",
+    "Dell",
+    "Vertiv",
+    "Eaton",
+    "Quanta Services",
+    "GE Vernova",
+    "Constellation",
+    "Vistra",
+    "Snowflake",
+    "Palantir",
+    "MongoDB",
+    "Tesla",
+    "Rivian",
+    "Intuitive Surgical",
+    "Symbotic",
+    "UPS",
+    "Verizon",
+    "Pfizer",
+    "Bristol Myers",
+    "Realty Income",
+    "VICI",
+    "Kraft Heinz"
+  ],
+  "updatePrinciples": [
+    "重要数据都标注日期",
+    "ETF 持仓必须以基金官网最新 holdings 为准",
+    "高股息股优先看 free cash flow coverage，而不是只看 dividend yield",
+    "AI 主题股优先看订单、毛利率、客户集中和资本开支回报",
+    "每次研究都要写清 bull case、bear case 和关键验证指标"
+  ],
+  "notes": "这份文件是从 Notion 研究首页提炼出来的生产摘要。它应该作为每日早报的选题优先级，而不是完整投资观点全文。"
+}

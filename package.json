@@ -1,0 +1,16 @@
+{
+  "name": "morning-news-automation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "daily-brief": "node src/cli.js daily-brief",
+    "check-sync-prompts": "node src/cli.js check-sync-prompts",
+    "record-notion-update": "node src/cli.js record-notion-update",
+    "validate-config": "node src/cli.js validate-config"
+  },
+  "dependencies": {
+    "googleapis": "^144.0.0",
+    "openai": "^4.103.0"
+  }
+}

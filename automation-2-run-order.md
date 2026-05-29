@@ -1,0 +1,21 @@
+# Automation 2 运行顺序
+
+1. 检查 Gmail 是否已发送当天同主题邮件
+2. 读取 Notion 最新内容
+   - [股票分析](https://www.notion.so/27745461819d80c9af3dff8aa5921931)
+   - [AI 产业链与铲子股图谱](https://www.notion.so/36e45461819d81dfa169cc9a0229008a)
+3. 提取当天有效的 topic、公司和研究重点
+4. 联网检索过去 24 小时新闻，并按 Notion 最新重点筛选
+   - 同时检索湾区最近 7-14 天是否有值得提醒的活动、展览或季节性去处
+5. 生成正文邮件
+6. 生成播报稿
+7. 生成 `.aiff` 音频附件
+8. 发送前自检
+   - 确认正文包含 `Podcast` 分区
+   - 确认已实际生成当天音频附件，文件名建议为 `morning-brief-YYYY-MM-DD.aiff`
+   - 若正文提到“影响某个领域/板块/产业链”，确认已点名该领域 2-5 家核心公司，优先写龙头、关键供应商、关键客户或 ETF 主要受影响成分
+   - 若包含 `湾区周末去处`，确认内容具有明确时间、地点和官方或高可信来源链接
+9. 用 Gmail 实际发送
+   - 若音频附件存在，必须作为附件一并发送
+   - 若音频附件生成失败，正文仍发送，但邮件开头需注明“今日语音版生成失败”，并在任务输出中说明失败原因
+10. 若 Notion 读取失败，则回退到 [`/Users/qingcai/Documents/Morning News/automation-2-config.md`](/Users/qingcai/Documents/Morning%20News/automation-2-config.md) 中的默认配置

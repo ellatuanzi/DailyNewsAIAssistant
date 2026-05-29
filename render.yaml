@@ -1,0 +1,29 @@
+services:
+  - type: cron
+    name: morning-news-daily-brief
+    runtime: node
+    plan: starter
+    schedule: "*/30 * * * *"
+    buildCommand: npm install
+    startCommand: npm run daily-brief
+    envVars:
+      - key: NODE_VERSION
+        value: 24.1.0
+      - key: TZ
+        value: America/Los_Angeles
+      - key: APP_ENV
+        value: production
+  - type: cron
+    name: morning-news-sync-check
+    runtime: node
+    plan: starter
+    schedule: "*/30 * * * *"
+    buildCommand: npm install
+    startCommand: npm run check-sync-prompts
+    envVars:
+      - key: NODE_VERSION
+        value: 24.1.0
+      - key: TZ
+        value: America/Los_Angeles
+      - key: APP_ENV
+        value: production
