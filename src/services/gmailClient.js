@@ -1,6 +1,11 @@
 import { google } from "googleapis";
 import { Buffer } from "node:buffer";
 
+function encodeHeader(value) {
+  if (!/[^\x00-\x7F]/.test(value)) return value;
+  return `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`;
+}
+
 function createOAuth2Client(config) {
   const client = new google.auth.OAuth2(
     config.gmailClientId,
@@ -34,8 +39,9 @@ export function createGmailClient(config) {
         `From: ${config.gmailSender}`,
         `To: ${to}`,
         "Content-Type: text/plain; charset=utf-8",
+        "Content-Transfer-Encoding: 8bit",
         "MIME-Version: 1.0",
-        `Subject: ${subject}`,
+        `Subject: ${encodeHeader(subject)}`,
         "",
         body
       ].join("\n");
