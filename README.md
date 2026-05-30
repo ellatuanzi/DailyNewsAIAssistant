@@ -91,6 +91,12 @@ Run the daily job locally:
 npm run daily-brief
 ```
 
+Force one manual run even if today's brief was already sent:
+
+```bash
+npm run daily-brief -- --force
+```
+
 Record a Notion update for next-day confirmation:
 
 ```bash

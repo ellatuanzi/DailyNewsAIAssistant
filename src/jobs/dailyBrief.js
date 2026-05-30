@@ -7,7 +7,8 @@ import { buildDailyBriefPrompt } from "../prompts/dailyBriefPrompt.js";
 import { log, warn } from "../lib/logger.js";
 import { localTimeParts, todayInTimeZone } from "../lib/time.js";
 
-export async function runDailyBrief() {
+export async function runDailyBrief(options = {}) {
+  const force = options.force === true;
   const config = getConfig();
   const gmail = createGmailClient(config);
   const gemini = createGeminiClient(config);
@@ -16,7 +17,7 @@ export async function runDailyBrief() {
   const subject = `每日定制早报 - ${date}`;
   const { hour } = localTimeParts(config.timezone);
 
-  if (hour < 7) {
+  if (!force && hour < 7) {
     log("Daily brief trigger fired before local send window. Skipping.", {
       timezone: config.timezone,
       localHour: hour
@@ -29,12 +30,24 @@ export async function runDailyBrief() {
     10
   );
 
-  if (alreadySent.length > 0) {
+  if (!force && alreadySent.length > 0) {
     log("Daily brief already sent. Skipping.", { subject, recipient: config.recipientEmail });
     return;
   }
 
-  if (!config.dailyBriefAllowAfterBudgetStop) {
+  if (force) {
+    warn("Daily brief running in force mode.", {
+      subject,
+      bypassedChecks: [
+        "local send window",
+        "already sent check",
+        "budget stop",
+        "daily LLM attempt cap"
+      ]
+    });
+  }
+
+  if (!force && !config.dailyBriefAllowAfterBudgetStop) {
     const budgetStopped = await briefState.hasBudgetStop();
 
     if (budgetStopped) {
@@ -57,7 +70,7 @@ export async function runDailyBrief() {
 
   const attemptsToday = await briefState.countTodayAttempts();
 
-  if (attemptsToday >= config.dailyBriefMaxLlmAttemptsPerDay) {
+  if (!force && attemptsToday >= config.dailyBriefMaxLlmAttemptsPerDay) {
     warn("Daily brief LLM attempt cap reached. Skipping generation.", {
       subject,
       attemptsToday,
