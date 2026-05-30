@@ -11,6 +11,11 @@ import { localTimeParts, todayInTimeZone } from "../lib/time.js";
 export async function runDailyBrief(options = {}) {
   const force = options.force === true;
   const config = getConfig();
+
+  if (!config.geminiApiKey) {
+    throw new Error("Missing required environment variable for daily brief: GEMINI_API_KEY");
+  }
+
   const gmail = createGmailClient(config);
   const gemini = createGeminiClient(config);
   const briefState = createDailyBriefState({ gmail, config });

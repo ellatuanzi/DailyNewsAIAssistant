@@ -8,6 +8,11 @@ function required(name) {
   return value;
 }
 
+function optional(name, defaultValue = undefined) {
+  const value = process.env[name];
+  return value == null || value === "" ? defaultValue : value;
+}
+
 function booleanFlag(value, defaultValue = false) {
   if (value == null || value === "") return defaultValue;
   return value === "true";
@@ -18,9 +23,9 @@ export function getConfig() {
     appEnv: process.env.APP_ENV || "development",
     timezone: process.env.TIMEZONE || "America/Los_Angeles",
     researchDir: process.env.RESEARCH_DIR || path.resolve(process.cwd(), "research"),
-    geminiApiKey: required("GEMINI_API_KEY"),
-    geminiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-    geminiTemperature: Number(process.env.GEMINI_TEMPERATURE || "0.2"),
+    geminiApiKey: optional("GEMINI_API_KEY"),
+    geminiModel: optional("GEMINI_MODEL", "gemini-2.5-flash"),
+    geminiTemperature: Number(optional("GEMINI_TEMPERATURE", "0.2")),
     dailyBriefMaxPromptChars: Number(process.env.DAILY_BRIEF_MAX_PROMPT_CHARS || "45000"),
     dailyBriefMaxOutputTokens: Number(process.env.DAILY_BRIEF_MAX_OUTPUT_TOKENS || "4000"),
     dailyBriefMaxLlmAttemptsPerDay: Number(process.env.DAILY_BRIEF_MAX_LLM_ATTEMPTS_PER_DAY || "1"),
