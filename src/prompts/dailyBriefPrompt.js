@@ -1,4 +1,4 @@
-export function buildDailyBriefPrompt({ date, researchContext }) {
+export function buildDailyBriefPrompt({ date, researchContext, weatherContext }) {
   return `
 你是一个中文个人早报编辑。请为 ${date} 生成手机端易读的中文早报正文。
 
@@ -15,7 +15,7 @@ export function buildDailyBriefPrompt({ date, researchContext }) {
 
 固定写法要求：
 - “天气”分区每天都写，至少包含：
-  - 湾区天气：优先概括旧金山 / 半岛或南湾的当日天气趋势、最高/最低温、降雨或大风提醒，以及是否适合出门
+  - 湾区天气：优先概括 Mountain View / Los Altos 的当日天气趋势、最高/最低温、降雨或大风提醒，以及是否适合出门
   - Gilbert, AZ 天气：当日天气趋势、最高/最低温、是否有高温、雷暴、扬尘或晚间降温提醒
 - “天气”尽量压缩到 4-6 行，优先写对穿衣、出行、周末安排有帮助的信息
 - 每条新闻尽量使用卡片结构：标题；一句话结论；摘要；为什么值得关注；来源链接
@@ -29,6 +29,9 @@ export function buildDailyBriefPrompt({ date, researchContext }) {
 
 以下是本地研究资料摘要，请作为选题优先级参考：
 ${JSON.stringify(researchContext, null, 2)}
+
+以下是已抓取的天气数据，请优先据此撰写“天气”分区，不要自行猜测温度：
+${JSON.stringify(weatherContext, null, 2)}
 
 重要约束：
 - 如果你缺少最新新闻事实，不要编造

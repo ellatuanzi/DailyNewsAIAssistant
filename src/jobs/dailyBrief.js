@@ -3,6 +3,7 @@ import { createGmailClient } from "../services/gmailClient.js";
 import { loadResearchLibrary } from "../services/researchLibrary.js";
 import { createGeminiClient } from "../services/geminiClient.js";
 import { createDailyBriefState } from "../services/dailyBriefState.js";
+import { fetchDailyWeather } from "../services/weatherClient.js";
 import { buildDailyBriefPrompt } from "../prompts/dailyBriefPrompt.js";
 import { log, warn } from "../lib/logger.js";
 import { localTimeParts, todayInTimeZone } from "../lib/time.js";
@@ -59,7 +60,21 @@ export async function runDailyBrief(options = {}) {
   }
 
   const researchContext = await loadResearchLibrary(config.researchDir);
-  const prompt = buildDailyBriefPrompt({ date, researchContext });
+  let weatherContext;
+  try {
+    weatherContext = await fetchDailyWeather();
+  } catch (error) {
+    warn("Weather fetch failed.", {
+      subject,
+      error: error?.message
+    });
+    weatherContext = {
+      unavailable: true,
+      note: "天气数据暂缺，需补抓取"
+    };
+  }
+
+  const prompt = buildDailyBriefPrompt({ date, researchContext, weatherContext });
   const promptLength = prompt.length;
 
   if (promptLength > config.dailyBriefMaxPromptChars) {
