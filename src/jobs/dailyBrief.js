@@ -1,15 +1,17 @@
 import { getConfig } from "../config.js";
 import { createGmailClient } from "../services/gmailClient.js";
 import { loadResearchLibrary } from "../services/researchLibrary.js";
-import { createOpenAiClient } from "../services/openaiClient.js";
+import { createGeminiClient } from "../services/geminiClient.js";
+import { createDailyBriefState } from "../services/dailyBriefState.js";
 import { buildDailyBriefPrompt } from "../prompts/dailyBriefPrompt.js";
-import { log } from "../lib/logger.js";
+import { log, warn } from "../lib/logger.js";
 import { localTimeParts, todayInTimeZone } from "../lib/time.js";
 
 export async function runDailyBrief() {
   const config = getConfig();
   const gmail = createGmailClient(config);
-  const openai = createOpenAiClient(config);
+  const gemini = createGeminiClient(config);
+  const briefState = createDailyBriefState({ gmail, config });
   const date = todayInTimeZone(config.timezone);
   const subject = `每日定制早报 - ${date}`;
   const { hour } = localTimeParts(config.timezone);
@@ -32,18 +34,59 @@ export async function runDailyBrief() {
     return;
   }
 
+  if (!config.dailyBriefAllowAfterBudgetStop) {
+    const budgetStopped = await briefState.hasBudgetStop();
+
+    if (budgetStopped) {
+      warn("Daily brief budget stop is active. Skipping generation.", {
+        subject
+      });
+      return;
+    }
+  }
+
   const researchContext = await loadResearchLibrary(config.researchDir);
   const prompt = buildDailyBriefPrompt({ date, researchContext });
+  const promptLength = prompt.length;
 
-  const response = await openai.responses.create({
-    model: config.openAiModel,
-    input: prompt
-  });
+  if (promptLength > config.dailyBriefMaxPromptChars) {
+    throw new Error(
+      `Daily brief prompt exceeded DAILY_BRIEF_MAX_PROMPT_CHARS (${promptLength} > ${config.dailyBriefMaxPromptChars}).`
+    );
+  }
 
-  const body = response.output_text?.trim();
+  const attemptsToday = await briefState.countTodayAttempts();
 
-  if (!body) {
-    throw new Error("OpenAI returned an empty daily brief body.");
+  if (attemptsToday >= config.dailyBriefMaxLlmAttemptsPerDay) {
+    warn("Daily brief LLM attempt cap reached. Skipping generation.", {
+      subject,
+      attemptsToday,
+      maxAttemptsPerDay: config.dailyBriefMaxLlmAttemptsPerDay
+    });
+    return;
+  }
+
+  await briefState.recordAttempt({ subject, promptLength });
+
+  let body;
+  try {
+    body = await gemini.generateText(prompt);
+  } catch (error) {
+    if (error?.budgetStop) {
+      await briefState.recordBudgetStop({
+        errorMessage: error.message,
+        status: error.status
+      });
+    }
+
+    warn("Gemini generation failed.", {
+      subject,
+      status: error?.status,
+      provider: error?.provider || "gemini",
+      error: error?.message,
+      budgetStop: Boolean(error?.budgetStop)
+    });
+    throw error;
   }
 
   const sent = await gmail.sendMail({

@@ -10,7 +10,6 @@
     "validate-config": "node src/cli.js validate-config"
   },
   "dependencies": {
-    "googleapis": "^144.0.0",
-    "openai": "^4.103.0"
+    "googleapis": "^144.0.0"
   }
 }

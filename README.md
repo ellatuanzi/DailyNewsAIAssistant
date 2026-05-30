@@ -11,7 +11,7 @@ This repository packages the daily Chinese morning brief as a deployable Render 
 
 - Runtime: Node.js on Render Cron Jobs
 - Delivery and state: Gmail API
-- LLM generation: OpenAI API
+- LLM generation: Gemini API
 - Research source of truth for production: local files in `research/`
 - Notion usage: optional authoring workspace only, not a runtime dependency for the daily brief
 
@@ -26,10 +26,11 @@ This avoids daylight-saving drift because Render cron schedules use UTC accordin
 
 ## Required environment variables
 
-### OpenAI
+### Gemini
 
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL`
+- `GEMINI_API_KEY`
+- `GEMINI_MODEL`
+- `GEMINI_TEMPERATURE`
 
 ### Gmail
 
@@ -44,6 +45,10 @@ This avoids daylight-saving drift because Render cron schedules use UTC accordin
 - `TIMEZONE`
 - `RESEARCH_DIR`
 - `PENDING_SYNC_TO_EMAIL`
+- `DAILY_BRIEF_MAX_PROMPT_CHARS`
+- `DAILY_BRIEF_MAX_OUTPUT_TOKENS`
+- `DAILY_BRIEF_MAX_LLM_ATTEMPTS_PER_DAY`
+- `DAILY_BRIEF_ALLOW_AFTER_BUDGET_STOP`
 
 ## Repository layout
 
@@ -65,6 +70,14 @@ Install dependencies:
 ```bash
 npm install
 ```
+
+Recommended budget guardrails:
+
+- Set `DAILY_BRIEF_MAX_LLM_ATTEMPTS_PER_DAY=1` to allow only one model call per day.
+- Keep `GEMINI_MODEL=gemini-2.5-flash` for lower cost than larger models.
+- Keep `DAILY_BRIEF_MAX_OUTPUT_TOKENS` capped so long outputs cannot silently expand spend.
+- Keep `DAILY_BRIEF_MAX_PROMPT_CHARS` capped so research/context growth fails fast instead of billing unexpectedly.
+- Keep `DAILY_BRIEF_ALLOW_AFTER_BUDGET_STOP=false` so quota/billing failures trip a persistent stop until we manually re-enable.
 
 Validate configuration:
 

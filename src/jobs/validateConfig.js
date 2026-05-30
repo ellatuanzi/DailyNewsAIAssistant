@@ -7,6 +7,11 @@ export async function validateConfig() {
     appEnv: config.appEnv,
     timezone: config.timezone,
     researchDir: config.researchDir,
-    recipientEmail: config.recipientEmail
+    recipientEmail: config.recipientEmail,
+    geminiModel: config.geminiModel,
+    dailyBriefMaxPromptChars: config.dailyBriefMaxPromptChars,
+    dailyBriefMaxOutputTokens: config.dailyBriefMaxOutputTokens,
+    dailyBriefMaxLlmAttemptsPerDay: config.dailyBriefMaxLlmAttemptsPerDay,
+    dailyBriefAllowAfterBudgetStop: config.dailyBriefAllowAfterBudgetStop
   });
 }
