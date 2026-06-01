@@ -26,9 +26,14 @@ export function getConfig() {
     geminiApiKey: optional("GEMINI_API_KEY"),
     geminiModel: optional("GEMINI_MODEL", "gemini-2.5-flash"),
     geminiTemperature: Number(optional("GEMINI_TEMPERATURE", "0.2")),
+    geminiUseGoogleSearch: booleanFlag(optional("GEMINI_USE_GOOGLE_SEARCH"), true),
     dailyBriefMaxPromptChars: Number(process.env.DAILY_BRIEF_MAX_PROMPT_CHARS || "45000"),
     dailyBriefMaxOutputTokens: Number(process.env.DAILY_BRIEF_MAX_OUTPUT_TOKENS || "4000"),
     dailyBriefMaxLlmAttemptsPerDay: Number(process.env.DAILY_BRIEF_MAX_LLM_ATTEMPTS_PER_DAY || "1"),
+    dailyBriefRequireGrounding: booleanFlag(
+      optional("DAILY_BRIEF_REQUIRE_GROUNDING"),
+      true
+    ),
     dailyBriefAllowAfterBudgetStop: booleanFlag(
       process.env.DAILY_BRIEF_ALLOW_AFTER_BUDGET_STOP,
       false

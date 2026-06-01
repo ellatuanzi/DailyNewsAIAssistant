@@ -15,6 +15,38 @@ function extractTextFromResponse(data) {
   return texts.join("\n\n").trim();
 }
 
+function extractGroundingMetadata(data) {
+  const candidates = data?.candidates || [];
+  const chunks = [];
+  const queries = [];
+
+  for (const candidate of candidates) {
+    const metadata = candidate?.groundingMetadata;
+    const groundingChunks = metadata?.groundingChunks || [];
+    const webQueries = metadata?.webSearchQueries || [];
+
+    for (const query of webQueries) {
+      if (typeof query === "string" && query.trim()) {
+        queries.push(query.trim());
+      }
+    }
+
+    for (const chunk of groundingChunks) {
+      const web = chunk?.web;
+      if (!web?.uri) continue;
+      chunks.push({
+        title: web.title || web.uri,
+        uri: web.uri
+      });
+    }
+  }
+
+  return {
+    queries,
+    chunks
+  };
+}
+
 function isBudgetStopError(status, message) {
   const normalized = `${message || ""}`.toLowerCase();
   return (
@@ -28,29 +60,37 @@ function isBudgetStopError(status, message) {
 
 export function createGeminiClient(config) {
   return {
-    async generateText(prompt) {
+    async generateText(prompt, options = {}) {
+      const grounded = options.grounded === true;
+      const requireGrounding = options.requireGrounding === true;
       const url = new URL(
         `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent`
       );
       url.searchParams.set("key", config.geminiApiKey);
+
+      const requestBody = {
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }]
+          }
+        ],
+        generationConfig: {
+          temperature: config.geminiTemperature,
+          maxOutputTokens: config.dailyBriefMaxOutputTokens
+        }
+      };
+
+      if (grounded) {
+        requestBody.tools = [{ google_search: {} }];
+      }
 
       const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: prompt }]
-            }
-          ],
-          generationConfig: {
-            temperature: config.geminiTemperature,
-            maxOutputTokens: config.dailyBriefMaxOutputTokens
-          }
-        })
+        body: JSON.stringify(requestBody)
       });
 
       const data = await response.json();
@@ -68,12 +108,27 @@ export function createGeminiClient(config) {
       }
 
       const text = extractTextFromResponse(data);
+      const grounding = extractGroundingMetadata(data);
 
       if (!text) {
         throw new Error("Gemini returned an empty daily brief body.");
       }
 
-      return text;
+      if (requireGrounding && grounding.chunks.length === 0) {
+        const error = new Error(
+          "Gemini returned a daily brief without grounding sources; refusing to send unverifiable news."
+        );
+        error.provider = "gemini";
+        error.details = {
+          grounding
+        };
+        throw error;
+      }
+
+      return {
+        text,
+        grounding
+      };
     }
   };
 }

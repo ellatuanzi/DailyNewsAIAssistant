@@ -8,6 +8,23 @@ import { buildDailyBriefPrompt } from "../prompts/dailyBriefPrompt.js";
 import { log, warn } from "../lib/logger.js";
 import { localTimeParts, todayInTimeZone } from "../lib/time.js";
 
+function countSourceLines(body) {
+  return body
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^来源[:：]/u.test(line)).length;
+}
+
+function validateDailyBriefBody(body) {
+  const sourceLineCount = countSourceLines(body);
+
+  if (sourceLineCount < 6) {
+    throw new Error(
+      `Daily brief body has too few source lines (${sourceLineCount}); refusing to send potentially unverified news.`
+    );
+  }
+}
+
 export async function runDailyBrief(options = {}) {
   const force = options.force === true;
   const config = getConfig();
@@ -101,9 +118,12 @@ export async function runDailyBrief(options = {}) {
 
   await briefState.recordAttempt({ subject, promptLength });
 
-  let body;
+  let generation;
   try {
-    body = await gemini.generateText(prompt);
+    generation = await gemini.generateText(prompt, {
+      grounded: config.geminiUseGoogleSearch,
+      requireGrounding: config.dailyBriefRequireGrounding
+    });
   } catch (error) {
     if (error?.budgetStop) {
       await briefState.recordBudgetStop({
@@ -122,6 +142,9 @@ export async function runDailyBrief(options = {}) {
     throw error;
   }
 
+  const body = generation.text;
+  validateDailyBriefBody(body);
+
   const sent = await gmail.sendMail({
     to: config.recipientEmail,
     subject,
@@ -131,6 +154,8 @@ export async function runDailyBrief(options = {}) {
   log("Daily brief sent.", {
     subject,
     recipient: config.recipientEmail,
-    messageId: sent.id
+    messageId: sent.id,
+    groundingQueries: generation.grounding?.queries || [],
+    groundingSourceCount: generation.grounding?.chunks?.length || 0
   });
 }
