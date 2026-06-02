@@ -64,8 +64,7 @@ export async function runDailyBrief(options = {}) {
       bypassedChecks: [
         "local send window",
         "already sent check",
-        "budget stop",
-        "daily LLM attempt cap"
+        "budget stop"
       ]
     });
   }
@@ -104,19 +103,6 @@ export async function runDailyBrief(options = {}) {
       `Daily brief prompt exceeded DAILY_BRIEF_MAX_PROMPT_CHARS (${promptLength} > ${config.dailyBriefMaxPromptChars}).`
     );
   }
-
-  const attemptsToday = await briefState.countTodayAttempts();
-
-  if (!force && attemptsToday >= config.dailyBriefMaxLlmAttemptsPerDay) {
-    warn("Daily brief LLM attempt cap reached. Skipping generation.", {
-      subject,
-      attemptsToday,
-      maxAttemptsPerDay: config.dailyBriefMaxLlmAttemptsPerDay
-    });
-    return;
-  }
-
-  await briefState.recordAttempt({ subject, promptLength });
 
   let generation;
   try {
