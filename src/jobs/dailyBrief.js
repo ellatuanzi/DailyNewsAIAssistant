@@ -4,7 +4,10 @@ import { loadResearchLibrary } from "../services/researchLibrary.js";
 import { createGeminiClient } from "../services/geminiClient.js";
 import { createDailyBriefState } from "../services/dailyBriefState.js";
 import { fetchDailyWeather } from "../services/weatherClient.js";
-import { buildDailyBriefPrompt } from "../prompts/dailyBriefPrompt.js";
+import {
+  buildDailyBriefPrompt,
+  buildGroundingRetryPrompt
+} from "../prompts/dailyBriefPrompt.js";
 import { log, warn } from "../lib/logger.js";
 import { localTimeParts, todayInTimeZone } from "../lib/time.js";
 
@@ -23,6 +26,53 @@ function validateDailyBriefBody(body) {
       `Daily brief body has too few source lines (${sourceLineCount}); refusing to send potentially unverified news.`
     );
   }
+}
+
+async function generateDailyBrief({ gemini, config, subject, prompts }) {
+  let lastError;
+
+  for (let attempt = 0; attempt < prompts.length; attempt += 1) {
+    const prompt = prompts[attempt];
+
+    try {
+      const generation = await gemini.generateText(prompt.body, {
+        grounded: config.geminiUseGoogleSearch,
+        requireGrounding: config.dailyBriefRequireGrounding
+      });
+
+      return {
+        ...generation,
+        attemptLabel: prompt.label,
+        attemptNumber: attempt + 1
+      };
+    } catch (error) {
+      lastError = error;
+
+      warn("Gemini generation attempt failed.", {
+        subject,
+        attempt: attempt + 1,
+        attemptLabel: prompt.label,
+        status: error?.status,
+        provider: error?.provider || "gemini",
+        error: error?.message,
+        errorCode: error?.code,
+        budgetStop: Boolean(error?.budgetStop),
+        groundingQueries: error?.details?.grounding?.queries || [],
+        groundingSourceCount: error?.details?.grounding?.chunks?.length || 0
+      });
+
+      const canRetryForGrounding =
+        error?.code === "missing_grounding" && attempt < prompts.length - 1;
+
+      if (canRetryForGrounding) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  throw lastError;
 }
 
 export async function runDailyBrief(options = {}) {
@@ -95,8 +145,13 @@ export async function runDailyBrief(options = {}) {
     };
   }
 
-  const prompt = buildDailyBriefPrompt({ date, researchContext, weatherContext });
-  const promptLength = prompt.length;
+  const primaryPrompt = buildDailyBriefPrompt({ date, researchContext, weatherContext });
+  const retryPrompt = buildGroundingRetryPrompt({ date, researchContext, weatherContext });
+  const prompts = [
+    { label: "full", body: primaryPrompt },
+    { label: "compact-grounding-retry", body: retryPrompt }
+  ];
+  const promptLength = primaryPrompt.length;
 
   if (promptLength > config.dailyBriefMaxPromptChars) {
     throw new Error(
@@ -106,9 +161,11 @@ export async function runDailyBrief(options = {}) {
 
   let generation;
   try {
-    generation = await gemini.generateText(prompt, {
-      grounded: config.geminiUseGoogleSearch,
-      requireGrounding: config.dailyBriefRequireGrounding
+    generation = await generateDailyBrief({
+      gemini,
+      config,
+      subject,
+      prompts
     });
   } catch (error) {
     if (error?.budgetStop) {
@@ -123,7 +180,10 @@ export async function runDailyBrief(options = {}) {
       status: error?.status,
       provider: error?.provider || "gemini",
       error: error?.message,
-      budgetStop: Boolean(error?.budgetStop)
+      errorCode: error?.code,
+      budgetStop: Boolean(error?.budgetStop),
+      groundingQueries: error?.details?.grounding?.queries || [],
+      groundingSourceCount: error?.details?.grounding?.chunks?.length || 0
     });
     throw error;
   }
@@ -141,6 +201,8 @@ export async function runDailyBrief(options = {}) {
     subject,
     recipient: config.recipientEmail,
     messageId: sent.id,
+    generationAttemptLabel: generation.attemptLabel,
+    generationAttemptNumber: generation.attemptNumber,
     groundingQueries: generation.grounding?.queries || [],
     groundingSourceCount: generation.grounding?.chunks?.length || 0
   });

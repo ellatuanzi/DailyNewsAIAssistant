@@ -118,6 +118,7 @@ export function createGeminiClient(config) {
         const error = new Error(
           "Gemini returned a daily brief without grounding sources; refusing to send unverifiable news."
         );
+        error.code = "missing_grounding";
         error.provider = "gemini";
         error.details = {
           grounding

@@ -34,6 +34,11 @@ export function buildDailyBriefPrompt({ date, researchContext, weatherContext })
   - 哪些判断是短期叙事，哪些需要等真实出货、OEM 设计赢单或企业采用验证
 - “关注清单”若出现，按“标的 / 事件 / 影响 / 风险或待确认点 / 来源”五行呈现
 - “关注清单”默认覆盖：NVDA、AVGO、TSM、AMD、MSFT、GOOGL、AMZN、META、VGT、SMH、BTC；若美联储在过去 24 小时内有实质政策、讲话、会议纪要、点阵图、票委表态或市场预期明显变化，也可加入 "FED" 作为宏观观察项
+- 若本次实时检索确认 UPS 股价达到或高于 120 美元，当天必须加入 UPS：
+  - 优先在“今日速览”用 1 条 bullet 提到
+  - 并在“关注清单”或“科技投资观察”里补充一条，说明触发、影响、风险与来源
+  - 如果只是盘中短暂触及但收盘回落，尽量写清是“盘中触及”还是“收盘站上”
+  - 如果无法核验最新价格或触发时点，就不要写成已触发
 - 比特币若出现，重点写：ETF 资金流、监管/政策、宏观流动性、风险偏好、与科技高 Beta 资产联动的变化；不要写碎片化价格播报
 - “网球”优先写 Jannik Sinner 和 Carlos Alcaraz 的下一场比赛、伤病、退赛、签表、赛程变化，以及“对接下来有什么影响”
 - “湾区周末去处”优先写最近 7-14 天内值得去的 1 条，最多 2 条；每条包含标题、一句话推荐理由、时间/地点、为什么这周值得去、来源链接
@@ -60,6 +65,7 @@ ${JSON.stringify(weatherContext, null, 2)}
 - 如果你缺少最新新闻事实，不要编造
 - 所有“过去 24 小时”“最新”“下一场比赛时间”“播客发布时间”“开赛日期”“退赛/伤病/公告”等时效性事实，都必须来自本次实时检索到的可核验来源，绝不能凭记忆补写
 - 所有“未来事件日期”“会议时间”“财报/发布会窗口”“联储会议或数据公布日”“比特币 ETF 或监管节点”等也必须来自本次实时检索到的可核验来源
+- 所有“股价触发条件”，包括 UPS 是否达到 120 美元，也必须来自本次实时检索到的可核验市场来源，并尽量注明是盘中、现价还是收盘
 - 如果某条新闻没有可靠来源链接，就不要写进正文
 - 宁可减少条数，也不要凑满数量；如果过去 24 小时内只能核验到 2-3 条重要新闻，就明确说明“可核验的重要更新有限”，只写已确认条目
 - 每个新闻条目都必须单独包含“来源：”一行，并给出可访问的来源名称和 URL；没有 URL 的条目一律不允许出现
@@ -69,5 +75,65 @@ ${JSON.stringify(weatherContext, null, 2)}
 - 如果天气数据缺失，要明确写“天气数据暂缺，需补抓取”，不要编造温度
 - 如果某个分区因为缺少可信的最新抓取而无法成文，要明确写“该分区缺少可核验的最新抓取，暂不展开”或“今日暂无新集”
 - 不要因为缺少资料就默默漏掉整个分区；只有在上面的省略条件明确满足时才省略
+`.trim();
+}
+
+function summarizeResearchContext(researchContext) {
+  const stock = researchContext?.stockAnalysis || {};
+  const supply = researchContext?.aiSupplyChain || {};
+
+  return {
+    stockSummary: stock.summary,
+    stockPriorityTopics: stock.priorityTopics?.slice(0, 6) || [],
+    stockPriorityCompanies: stock.priorityCompanies?.slice(0, 12) || [],
+    stockPreferredEtfs: stock.preferredEtfs?.slice(0, 6) || [],
+    aiSummary: supply.summary,
+    aiPriorityTopics: supply.priorityTopics?.slice(0, 8) || [],
+    aiPriorityCompanies: supply.priorityCompanies?.slice(0, 16) || [],
+    aiPreferredEtfs: supply.preferredEtfs?.slice(0, 8) || []
+  };
+}
+
+export function buildGroundingRetryPrompt({ date, researchContext, weatherContext }) {
+  const compactResearchContext = summarizeResearchContext(researchContext);
+
+  return `
+你是一个中文个人早报编辑。请先实时检索，再为 ${date} 生成手机端易读的中文早报正文。
+
+这次任务的首要目标不是多写，而是确保每个要点都来自本次实时检索到的来源。
+
+硬性要求：
+- 输出纯文本
+- 必须优先使用 Google Search 实时检索到的结果，不要依赖记忆
+- 每个新闻条目都必须单独包含“来源：来源名 URL”一行
+- 如果某条内容没有可核验 URL，就不要写入正文
+- 如果某个分区缺少足够可靠的最新抓取，请明确写“该分区缺少可核验的最新抓取，暂不展开”或“今日暂无新集”
+- 宁可少写，也不要编造；宁可只写 2-3 条最重要更新，也不要凑数量
+
+输出结构：
+- 今日速览：4-6 条短 bullet
+- 天气
+- 科技与 AI：2-4 条
+- 科技投资观察：2-3 条，按“观察 / 影响 / 风险（不是投资建议）”
+- 关注清单：仅在 NVDA、AVGO、TSM、AMD、MSFT、GOOGL、AMZN、META、VGT、SMH、BTC 出现过去 24 小时内实质变化时才写，格式固定为“标的 / 事件 / 影响 / 风险或待确认点 / 来源”
+- 宏观与市场：1-3 条
+- 网球：优先 Jannik Sinner 与 Carlos Alcaraz 的下一场比赛、伤病、退赛、赛程变化；若无实质更新且无 upcoming heads-up，可省略
+- 随机拓展：1 条
+- Podcast：检查罗永浩的十字路口、知行小酒馆、起朱楼宴宾客、无人知晓过去 24 小时是否有新集；没有就写“今日暂无新集”
+- 尾注：本邮件仅供信息参考，不构成投资建议。
+
+内容规则：
+- 科技与 AI：只选过去 24 小时内最重要、最能改变判断的新闻
+- 科技投资观察：重点围绕 VGT、SMH、半导体、云计算、AI 基础设施、主要科技公司资本开支与产业链影响
+- 宏观与市场：优先美联储、利率预期、关税/监管、地缘风险，以及这些因素如何传导到科技与风险偏好
+- 网球：优先写“接下来有什么影响”，不要堆比分
+- Podcast：如果只能看到标题和简短简介，必须明确写“基于公开简介的初步摘要”
+- 天气必须基于以下已抓取数据，不能自行猜测温度
+
+个性化研究重点：
+${JSON.stringify(compactResearchContext, null, 2)}
+
+已抓取天气数据：
+${JSON.stringify(weatherContext, null, 2)}
 `.trim();
 }
