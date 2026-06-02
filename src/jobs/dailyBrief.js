@@ -6,16 +6,30 @@ import { createDailyBriefState } from "../services/dailyBriefState.js";
 import { fetchDailyWeather } from "../services/weatherClient.js";
 import {
   buildDailyBriefPrompt,
-  buildGroundingRetryPrompt
+  buildGroundingRetryPrompt,
+  buildSourceFormatRetryPrompt
 } from "../prompts/dailyBriefPrompt.js";
 import { log, warn } from "../lib/logger.js";
 import { localTimeParts, todayInTimeZone } from "../lib/time.js";
+
+function isSourceEvidenceLine(line) {
+  const trimmed = line.trim();
+
+  if (!trimmed) return false;
+
+  const hasUrl = /https?:\/\/\S+/i.test(trimmed);
+  const startsWithSourceLabel =
+    /^[\-*•]?\s*(来源|来源链接|链接|source|link)\s*[:：-]/iu.test(trimmed);
+  const isStandaloneUrl = /^https?:\/\/\S+$/i.test(trimmed);
+
+  return startsWithSourceLabel || isStandaloneUrl || (hasUrl && startsWithSourceLabel);
+}
 
 function countSourceLines(body) {
   return body
     .split("\n")
     .map((line) => line.trim())
-    .filter((line) => /^来源[:：]/u.test(line)).length;
+    .filter(isSourceEvidenceLine).length;
 }
 
 function validateDailyBriefBody(body) {
@@ -26,6 +40,10 @@ function validateDailyBriefBody(body) {
       `Daily brief body has too few source lines (${sourceLineCount}); refusing to send potentially unverified news.`
     );
   }
+}
+
+function getSourceLineCount(body) {
+  return countSourceLines(body);
 }
 
 async function generateDailyBrief({ gemini, config, subject, prompts }) {
@@ -40,10 +58,27 @@ async function generateDailyBrief({ gemini, config, subject, prompts }) {
         requireGrounding: config.dailyBriefRequireGrounding
       });
 
+      const sourceLineCount = getSourceLineCount(generation.text);
+      const needsSourceFormatRetry =
+        prompt.retryOnTooFewSourceLines === true &&
+        sourceLineCount < 6 &&
+        attempt < prompts.length - 1;
+
+      if (needsSourceFormatRetry) {
+        warn("Gemini generation produced too few source lines; retrying with stricter format prompt.", {
+          subject,
+          attempt: attempt + 1,
+          attemptLabel: prompt.label,
+          sourceLineCount
+        });
+        continue;
+      }
+
       return {
         ...generation,
         attemptLabel: prompt.label,
-        attemptNumber: attempt + 1
+        attemptNumber: attempt + 1,
+        sourceLineCount
       };
     } catch (error) {
       lastError = error;
@@ -147,9 +182,23 @@ export async function runDailyBrief(options = {}) {
 
   const primaryPrompt = buildDailyBriefPrompt({ date, researchContext, weatherContext });
   const retryPrompt = buildGroundingRetryPrompt({ date, researchContext, weatherContext });
+  const sourceFormatRetryPrompt = buildSourceFormatRetryPrompt({
+    date,
+    researchContext,
+    weatherContext
+  });
   const prompts = [
-    { label: "full", body: primaryPrompt },
-    { label: "compact-grounding-retry", body: retryPrompt }
+    { label: "full", body: primaryPrompt, retryOnTooFewSourceLines: true },
+    {
+      label: "compact-grounding-retry",
+      body: retryPrompt,
+      retryOnTooFewSourceLines: true
+    },
+    {
+      label: "source-format-retry",
+      body: sourceFormatRetryPrompt,
+      retryOnTooFewSourceLines: false
+    }
   ];
   const promptLength = primaryPrompt.length;
 
@@ -203,6 +252,7 @@ export async function runDailyBrief(options = {}) {
     messageId: sent.id,
     generationAttemptLabel: generation.attemptLabel,
     generationAttemptNumber: generation.attemptNumber,
+    sourceLineCount: generation.sourceLineCount,
     groundingQueries: generation.grounding?.queries || [],
     groundingSourceCount: generation.grounding?.chunks?.length || 0
   });

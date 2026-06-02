@@ -137,3 +137,42 @@ ${JSON.stringify(compactResearchContext, null, 2)}
 ${JSON.stringify(weatherContext, null, 2)}
 `.trim();
 }
+
+export function buildSourceFormatRetryPrompt({ date, researchContext, weatherContext }) {
+  const compactResearchContext = summarizeResearchContext(researchContext);
+
+  return `
+你是一个中文个人早报编辑。请先实时检索，再为 ${date} 生成手机端易读的中文早报正文。
+
+这次重试的唯一重点：每条新闻或观察都必须显式写出单独一行“来源：来源名 URL”。
+
+硬性要求：
+- 输出纯文本
+- 必须优先使用 Google Search 实时检索到的结果，不要依赖记忆
+- 每个新闻条目必须包含以下独立字段行：
+  标题：
+  一句话结论：
+  摘要：
+  为什么值得关注：
+  来源：来源名 URL
+- “来源：”这一行必须单独成行，不能省略，不能写成段落里的内嵌链接
+- 如果某条内容没有可核验 URL，就不要写入正文
+- 宁可少写，也不要编造
+
+输出结构：
+- 今日速览：4-6 条短 bullet
+- 天气
+- 科技与 AI：2-4 条
+- 科技投资观察：2-3 条，按“观察：/ 影响：/ 风险：/ 来源：”
+- 宏观与市场：1-3 条
+- 随机拓展：1 条
+- Podcast：若无更新，写“今日暂无新集”
+- 尾注：本邮件仅供信息参考，不构成投资建议。
+
+个性化研究重点：
+${JSON.stringify(compactResearchContext, null, 2)}
+
+已抓取天气数据：
+${JSON.stringify(weatherContext, null, 2)}
+`.trim();
+}
