@@ -1,13 +1,13 @@
 {
   "title": "股票分析",
-  "sourcePageRef": "股票分析（工作 Notion 页面）",
+  "sourcePageRef": "💹 股票分析（Notion 页面）",
   "lastUpdated": "2026-05-29",
-  "summary": "作为投资研究总入口，当前优先聚焦杠铃式资产配置、AI 产业链与铲子股、以及 UPS/Amazon Logistics/高股息研究。风险端核心偏向 VGT，AI 卫星仓位重点观察 SMH 与 AIPO，并延伸到云平台、半导体制造、数据中心物理层和物流竞争结构。",
+  "summary": "作为投资研究总入口，当前页面把研究分成四条主线：基础框架、杠铃式资产配置、AI 产业链与铲子股、以及 UPS/Amazon Logistics/高股息研究。组合思路偏北美科技核心仓位，风险端以 VGT 为核心，辅以 QQQM、SMH、AIPO，并把 AI 制造、网络、数据中心物理层和物流竞争结构放入同一套研究地图。",
   "priorityTopics": [
     "杠铃型投资框架：安全端与高弹性端",
-    "AI 产业链与铲子股",
+    "AI 产业链教材版、公司级关系图与价值流",
     "AI 物理层：电力、冷却、能源、材料与地产",
-    "AI ETF 布局：VGT、QQQM、VOO、SMH、AIPO",
+    "AI ETF 布局：VGT、QQQ/QQQM、VOO/VOOG、SMH、AIPO",
     "UPS / Amazon Logistics / 高股息研究",
     "高股息股的现金流覆盖与 dividend safety"
   ],
@@ -72,17 +72,21 @@
   },
   "focusQuestions": [
     "谁掌握 AI 产业链瓶颈与定价权？",
-    "GPU、ASIC、HBM、CoWoS、电力、网络谁更稀缺？",
+    "GPU、ASIC、HBM、CoWoS、电力、网络谁更有定价权？",
     "Physical AI 是否会成为下一阶段应用层主线？",
     "ETF 暴露是否在重复押注 NVDA、AVGO、MSFT？",
     "UPS 放弃低利润 Amazon 量后，能否变成更小但更赚钱的物流公司？",
-    "UPS 的股息是否安全，还是典型的 yield trap？"
+    "Amazon 是否会抢走 UPS 未来想要的 SMB/DTC 电商包裹？",
+    "UPS 的股息是否安全？是机会还是典型的 yield trap？",
+    "物流保险和 last-mile 风险定价会不会被 Amazon 数据能力重构？"
   ],
   "readingOrder": [
     "股票分析基础：方法、常识与重要指标",
     "杠铃型投资框架：安全端与高弹性端",
     "AI 产业链与铲子股图谱",
-    "UPS 个股投资分析"
+    "UPS 个股投资分析",
+    "Amazon Logistics",
+    "UPS vs Amazon 聊天研究总结"
   ],
   "researchExtensions": [
     "NVIDIA",
@@ -123,5 +127,5 @@
     "AI 主题股优先看订单、毛利率、客户集中和资本开支回报",
     "每次研究都要写清 bull case、bear case 和关键验证指标"
   ],
-  "notes": "这份文件是从 Notion 研究首页提炼出来的生产摘要。它应该作为每日早报的选题优先级，而不是完整投资观点全文。"
+  "notes": "这份文件从 Notion 研究首页提炼出当前的研究入口、阅读顺序、组合框架与重点问题，供每日早报做选题排序与解释口径参考，而不是替代完整投资研究。"
 }
