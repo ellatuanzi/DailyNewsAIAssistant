@@ -124,6 +124,8 @@ export async function runDailyBrief(options = {}) {
   const date = todayInTimeZone(config.timezone);
   const subject = `每日定制早报 - ${date}`;
   const { hour } = localTimeParts(config.timezone);
+  const recipients = config.recipientEmails;
+  const recipientHeader = recipients.join(", ");
 
   if (!force && hour < 7) {
     log("Daily brief trigger fired before local send window. Skipping.", {
@@ -133,13 +135,22 @@ export async function runDailyBrief(options = {}) {
     return;
   }
 
-  const alreadySent = await gmail.search(
-    `in:sent to:${config.recipientEmail} subject:"${subject}"`,
-    10
+  const sentChecks = await Promise.all(
+    recipients.map(async (recipient) => ({
+      recipient,
+      messages: await gmail.search(`in:sent to:${recipient} subject:"${subject}"`, 10)
+    }))
   );
+  const alreadySentRecipients = sentChecks
+    .filter(({ messages }) => messages.length > 0)
+    .map(({ recipient }) => recipient);
 
-  if (!force && alreadySent.length > 0) {
-    log("Daily brief already sent. Skipping.", { subject, recipient: config.recipientEmail });
+  if (!force && alreadySentRecipients.length > 0) {
+    log("Daily brief already sent. Skipping.", {
+      subject,
+      recipients,
+      alreadySentRecipients
+    });
     return;
   }
 
@@ -241,14 +252,14 @@ export async function runDailyBrief(options = {}) {
   validateDailyBriefBody(body);
 
   const sent = await gmail.sendMail({
-    to: config.recipientEmail,
+    to: recipientHeader,
     subject,
     body
   });
 
   log("Daily brief sent.", {
     subject,
-    recipient: config.recipientEmail,
+    recipients,
     messageId: sent.id,
     generationAttemptLabel: generation.attemptLabel,
     generationAttemptNumber: generation.attemptNumber,

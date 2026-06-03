@@ -18,7 +18,22 @@ function booleanFlag(value, defaultValue = false) {
   return value === "true";
 }
 
+function parseEmailList(value) {
+  return (value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export function getConfig() {
+  const recipientEmails = parseEmailList(
+    optional("RECIPIENT_EMAILS", process.env.RECIPIENT_EMAIL || "")
+  );
+
+  if (recipientEmails.length === 0) {
+    throw new Error("Missing required environment variable: RECIPIENT_EMAILS or RECIPIENT_EMAIL");
+  }
+
   return {
     appEnv: process.env.APP_ENV || "development",
     timezone: process.env.TIMEZONE || "America/Los_Angeles",
@@ -41,7 +56,8 @@ export function getConfig() {
     gmailClientSecret: required("GMAIL_CLIENT_SECRET"),
     gmailRefreshToken: required("GMAIL_REFRESH_TOKEN"),
     gmailSender: required("GMAIL_SENDER"),
-    recipientEmail: required("RECIPIENT_EMAIL"),
-    pendingSyncToEmail: process.env.PENDING_SYNC_TO_EMAIL || required("RECIPIENT_EMAIL")
+    recipientEmail: recipientEmails[0],
+    recipientEmails,
+    pendingSyncToEmail: process.env.PENDING_SYNC_TO_EMAIL || recipientEmails[0]
   };
 }

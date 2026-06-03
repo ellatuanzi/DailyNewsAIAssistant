@@ -44,7 +44,7 @@ GMAIL_CLIENT_ID
 GMAIL_CLIENT_SECRET
 GMAIL_REFRESH_TOKEN
 GMAIL_SENDER
-RECIPIENT_EMAIL
+RECIPIENT_EMAILS
 PENDING_SYNC_TO_EMAIL
 TIMEZONE
 RESEARCH_DIR
@@ -57,11 +57,11 @@ DAILY_BRIEF_ALLOW_AFTER_BUDGET_STOP
 ## Notes
 
 - `GMAIL_SENDER`: the Gmail account that actually sends the email
-- `RECIPIENT_EMAIL`: the morning brief recipient
+- `RECIPIENT_EMAILS`: comma-separated morning brief recipients
 - `PENDING_SYNC_TO_EMAIL`: who receives the next-day GitHub sync confirmation email
 - `DAILY_BRIEF_ALLOW_AFTER_BUDGET_STOP=false`: if Gemini returns quota/billing exhaustion, the automation records a stop marker and future runs will not call the model again until you explicitly override
 - `DAILY_BRIEF_MAX_PROMPT_CHARS`: hard-fails if prompt/context grows unexpectedly
 - `DAILY_BRIEF_MAX_OUTPUT_TOKENS`: caps output size and therefore spend
-- Duplicate sends are prevented by checking Gmail for the day's final brief subject before generating
+- Duplicate sends are prevented by checking each configured recipient for the day's final brief subject before generating
 - Do not commit real secret values into GitHub
 - `.env.render` is gitignored and intended for local-only storage

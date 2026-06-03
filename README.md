@@ -39,7 +39,7 @@ This avoids daylight-saving drift because Render cron schedules use UTC accordin
 - `GMAIL_CLIENT_SECRET`
 - `GMAIL_REFRESH_TOKEN`
 - `GMAIL_SENDER`
-- `RECIPIENT_EMAIL`
+- `RECIPIENT_EMAILS` or `RECIPIENT_EMAIL`
 
 ### App config
 
@@ -79,7 +79,7 @@ Recommended guardrails:
 - Keep `DAILY_BRIEF_MAX_OUTPUT_TOKENS` capped so long outputs cannot silently expand spend.
 - Keep `DAILY_BRIEF_MAX_PROMPT_CHARS` capped so research/context growth fails fast instead of billing unexpectedly.
 - Keep `DAILY_BRIEF_ALLOW_AFTER_BUDGET_STOP=false` so quota/billing failures trip a persistent stop until we manually re-enable.
-- Duplicate sends are prevented by checking Gmail for the day's final brief subject before generating.
+- Duplicate sends are prevented by checking each configured recipient's sent history for the day's final brief subject before generating.
 
 Validate configuration:
 

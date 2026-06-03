@@ -8,6 +8,7 @@ export async function validateConfig() {
     timezone: config.timezone,
     researchDir: config.researchDir,
     recipientEmail: config.recipientEmail,
+    recipientEmails: config.recipientEmails,
     geminiModel: config.geminiModel,
     dailyBriefMaxPromptChars: config.dailyBriefMaxPromptChars,
     dailyBriefMaxOutputTokens: config.dailyBriefMaxOutputTokens,
