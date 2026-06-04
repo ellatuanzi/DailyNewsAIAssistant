@@ -1,4 +1,5 @@
 const WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast";
+const WEATHER_REQUEST_TIMEOUT_MS = 10000;
 
 const WEATHER_CODE_LABELS = {
   0: "晴",
@@ -89,7 +90,9 @@ async function fetchLocationWeather(location) {
   url.searchParams.set("precipitation_unit", "inch");
   url.searchParams.set("forecast_days", "1");
 
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(WEATHER_REQUEST_TIMEOUT_MS)
+  });
   const data = await response.json();
 
   if (!response.ok) {
@@ -124,18 +127,49 @@ async function fetchLocationWeather(location) {
 }
 
 export async function fetchDailyWeather() {
-  const [mountainView, losAltos, gilbert] = await Promise.all([
-    fetchLocationWeather(LOCATIONS.mountainView),
-    fetchLocationWeather(LOCATIONS.losAltos),
-    fetchLocationWeather(LOCATIONS.gilbert)
-  ]);
+  const locationEntries = Object.entries(LOCATIONS);
+  const results = await Promise.allSettled(
+    locationEntries.map(([, location]) => fetchLocationWeather(location))
+  );
+
+  const weatherByKey = {};
+  const failures = [];
+
+  results.forEach((result, index) => {
+    const [key, location] = locationEntries[index];
+
+    if (result.status === "fulfilled") {
+      weatherByKey[key] = result.value;
+      return;
+    }
+
+    failures.push({
+      location: location.label,
+      error: result.reason?.message || String(result.reason)
+    });
+  });
+
+  if (Object.keys(weatherByKey).length === 0) {
+    throw new Error(
+      `Weather fetch failed for all locations: ${failures
+        .map((failure) => `${failure.location}: ${failure.error}`)
+        .join("; ")}`
+    );
+  }
 
   return {
+    unavailable: false,
+    partial: failures.length > 0,
+    failures,
+    note:
+      failures.length > 0
+        ? `部分天气数据抓取失败：${failures.map((failure) => failure.location).join("、")}`
+        : undefined,
     bayArea: {
       summary: "Use Mountain View + Los Altos to summarize Bay Area conditions.",
-      mountainView,
-      losAltos
+      mountainView: weatherByKey.mountainView || null,
+      losAltos: weatherByKey.losAltos || null
     },
-    gilbert
+    gilbert: weatherByKey.gilbert || null
   };
 }

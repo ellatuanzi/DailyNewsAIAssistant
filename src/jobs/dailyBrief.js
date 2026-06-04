@@ -180,6 +180,12 @@ export async function runDailyBrief(options = {}) {
   let weatherContext;
   try {
     weatherContext = await fetchDailyWeather();
+    if (weatherContext.partial) {
+      warn("Weather fetch partially failed.", {
+        subject,
+        failures: weatherContext.failures
+      });
+    }
   } catch (error) {
     warn("Weather fetch failed.", {
       subject,
