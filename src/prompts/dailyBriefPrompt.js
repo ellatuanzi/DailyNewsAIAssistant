@@ -37,7 +37,7 @@ const SOURCE_AND_VERIFICATION_RULES = `
 - 每条新闻的“来源：”优先写英文来源名与原始英文 URL；正文保持中文，但不要把中文媒体链接当主来源
 `;
 
-function buildPromptContext({ researchContext, weatherContext, podcastContext }) {
+function buildPromptContext({ researchContext, weatherContext, podcastContext, quoteContext }) {
   return `
 以下是本地研究资料摘要，请作为选题优先级参考：
 ${JSON.stringify(researchContext, null, 2)}
@@ -47,6 +47,9 @@ ${JSON.stringify(weatherContext, null, 2)}
 
 以下是已抓取的 Podcast 更新结果；Podcast 分区优先以此为准：
 ${JSON.stringify(podcastContext, null, 2)}
+
+以下是已抓取的 SMH / VGT 行情结果；科技投资观察分区优先以此为准：
+${JSON.stringify(quoteContext, null, 2)}
 `.trim();
 }
 
@@ -66,7 +69,12 @@ function summarizeResearchContext(researchContext) {
   };
 }
 
-function buildRetryContext({ compactResearchContext, weatherContext, podcastContext }) {
+function buildRetryContext({
+  compactResearchContext,
+  weatherContext,
+  podcastContext,
+  quoteContext
+}) {
   return `
 个性化研究重点：
 ${JSON.stringify(compactResearchContext, null, 2)}
@@ -76,10 +84,19 @@ ${JSON.stringify(weatherContext, null, 2)}
 
 已抓取 Podcast 更新结果：
 ${JSON.stringify(podcastContext, null, 2)}
+
+已抓取 SMH / VGT 行情结果：
+${JSON.stringify(quoteContext, null, 2)}
 `.trim();
 }
 
-export function buildDailyBriefPrompt({ date, researchContext, weatherContext, podcastContext }) {
+export function buildDailyBriefPrompt({
+  date,
+  researchContext,
+  weatherContext,
+  podcastContext,
+  quoteContext
+}) {
   return `
 你是一个中文个人早报编辑。请为 ${date} 生成手机端易读的中文早报正文。
 
@@ -110,6 +127,8 @@ ${GETTY_SECTION_RULES.trim()}
 - “科技投资观察”不能只写板块涨跌或情绪，必须优先回答“这件事会怎么改变产业链、盈利分配、资本开支、ETF 暴露或市场主线”
 - “科技投资观察”每一条都必须尽量同时交代 bull case 与 bear case：分别写清当前最主要的看涨驱动、看跌驱动、哪些属于短期交易叙事、哪些属于需要后续财报/订单/资本开支验证的基本面判断
 ${ETF_FIXED_OBSERVATION_RULES.trim()}
+- “科技投资观察”分区必须优先使用下面提供的 SMH / VGT 行情结果；如果其中有可用价格，就不要改写成别的数值
+- 写 SMH / VGT 价格时，必须同时说明数据口径，例如盘中、regular market、延迟行情、前收或盘后，不要只写裸价格
 - 若讨论个股、ETF 或产业链方向，优先回答“市场为什么会继续上修预期”以及“市场为什么可能下修预期”，避免只给单边结论
 - 如果新闻涉及 NVIDIA、AMD、Intel、Qualcomm、Microsoft、Google、Amazon、Meta、Apple 等平台型公司进入新产品或新市场，必须尽量拆解：
   - 对公司自身意味着什么
@@ -148,7 +167,7 @@ ${PODCAST_FETCH_RULES.trim()}
   - 每条至少写：事件 / 日期或时间窗口 / 为什么要提前看 / 更相关的标的或板块
 - 最后加一句：本邮件仅供信息参考，不构成投资建议。
 
-${buildPromptContext({ researchContext, weatherContext, podcastContext })}
+${buildPromptContext({ researchContext, weatherContext, podcastContext, quoteContext })}
 
 重要约束：
 - 如果你缺少最新新闻事实，不要编造
@@ -166,6 +185,7 @@ ${buildPromptContext({ researchContext, weatherContext, podcastContext })}
 - 如果写哲学或艺术拓展，必须说明它为什么与当天主线或当下时事相关；不要只罗列展讯或抽象感想
 - 若当天没有足够强的艺术/哲学时效新闻，也不要留空；请明确写成“今日视角”或“今日延伸阅读”，给出一条高质量拓展并解释它和今天主线的连接
 ${SOURCE_AND_VERIFICATION_RULES.trim()}
+- 对 SMH / VGT，若已抓取行情结果中 price 可用，就必须以该值为准；若 unavailable 或 missing，才允许回退到实时搜索补查
 - 如果某条新闻没有可靠来源链接，就不要写进正文
 - 宁可减少条数，也不要凑满数量；如果过去 24 小时内只能核验到 2-3 条重要新闻，就明确说明“可核验的重要更新有限”，只写已确认条目
 - 每个新闻条目都必须单独包含“来源：”一行，并给出可访问的来源名称和 URL；没有 URL 的条目一律不允许出现
@@ -182,7 +202,8 @@ export function buildGroundingRetryPrompt({
   date,
   researchContext,
   weatherContext,
-  podcastContext
+  podcastContext,
+  quoteContext
 }) {
   const compactResearchContext = summarizeResearchContext(researchContext);
 
@@ -199,6 +220,7 @@ export function buildGroundingRetryPrompt({
 - Stanford 课程材料是“随机拓展”的必写来源，每天固定 1 条；目标是帮助收件人稳定积累知识，而不是只在当天新闻需要时才出现
 - “随机拓展”固定写 2 条：1 条 Stanford 课程知识卡片 + 1 条哲学 / 艺术 / 思想视角拓展；但在 ${GETTY_WINDOW} 期间，Getty Museum 内容应放在独立分区，不要挤占这 2 条固定名额
 - Podcast 分区必须优先使用下面提供的 Podcast 更新抓取结果；如果其中已确认某节目有过去 24 小时新集，就不能写“今日暂无新集”
+- 科技投资观察分区必须优先使用下面提供的 SMH / VGT 行情结果；如果其中 price 可用，就不能改写成其他价格
 - 每个新闻条目都必须单独包含“来源：来源名 URL”一行
 - 如果某条内容没有可核验 URL，就不要写入正文
 - 如果某个分区缺少足够可靠的最新抓取，请明确写“该分区缺少可核验的最新抓取，暂不展开”或“今日暂无新集”
@@ -231,7 +253,12 @@ export function buildGroundingRetryPrompt({
 - Podcast：如果只能看到标题和简短简介，必须明确写“基于公开简介的初步摘要”
 - 天气必须基于以下已抓取数据，不能自行猜测温度
 
-${buildRetryContext({ compactResearchContext, weatherContext, podcastContext })}
+${buildRetryContext({
+  compactResearchContext,
+  weatherContext,
+  podcastContext,
+  quoteContext
+})}
 `.trim();
 }
 
@@ -239,7 +266,8 @@ export function buildSourceFormatRetryPrompt({
   date,
   researchContext,
   weatherContext,
-  podcastContext
+  podcastContext,
+  quoteContext
 }) {
   const compactResearchContext = summarizeResearchContext(researchContext);
 
@@ -257,6 +285,7 @@ export function buildSourceFormatRetryPrompt({
 - 哲学或艺术拓展为必写栏目，必须写成与当下新闻相关的“视角拓展”；若缺少合格时效新闻，就写成“今日视角”或“延伸阅读”，不要留空，也不要写成独立长篇评论
 - 在 ${GETTY_WINDOW} 期间，Getty Museum 为单独固定分区；优先写 1 条 Getty 官方可核验展品/展览介绍，即使没有过去 24 小时内新动态也不要省略，但必须明确它不是突发新闻
 - Podcast 分区必须优先尊重已抓取的 Podcast 更新结果；若其中显示有新集，不能写“今日暂无新集”
+- 科技投资观察必须优先尊重已抓取的 SMH / VGT 行情结果；若其中有 price，就不要改写成别的数值
 - 每个新闻条目必须包含以下独立字段行：
   标题：
   一句话结论：
@@ -282,6 +311,11 @@ export function buildSourceFormatRetryPrompt({
 - Podcast：若无更新，写“今日暂无新集”
 - 尾注：本邮件仅供信息参考，不构成投资建议。
 
-${buildRetryContext({ compactResearchContext, weatherContext, podcastContext })}
+${buildRetryContext({
+  compactResearchContext,
+  weatherContext,
+  podcastContext,
+  quoteContext
+})}
 `.trim();
 }

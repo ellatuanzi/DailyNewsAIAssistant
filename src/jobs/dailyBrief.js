@@ -5,6 +5,7 @@ import { createGeminiClient } from "../services/geminiClient.js";
 import { createDailyBriefState } from "../services/dailyBriefState.js";
 import { fetchDailyWeather } from "../services/weatherClient.js";
 import { fetchPodcastUpdates } from "../services/podcastClient.js";
+import { fetchEtfQuotes } from "../services/financeClient.js";
 import {
   buildDailyBriefPrompt,
   buildGroundingRetryPrompt,
@@ -180,6 +181,7 @@ export async function runDailyBrief(options = {}) {
   const researchContext = await loadResearchLibrary(config.researchDir);
   let weatherContext;
   let podcastContext;
+  let quoteContext;
   try {
     weatherContext = await fetchDailyWeather();
     if (weatherContext.partial) {
@@ -220,23 +222,47 @@ export async function runDailyBrief(options = {}) {
     };
   }
 
+  try {
+    quoteContext = await fetchEtfQuotes();
+    if (quoteContext.partial) {
+      warn("ETF quote fetch partially failed.", {
+        subject,
+        missingSymbols: quoteContext.missingSymbols
+      });
+    }
+  } catch (error) {
+    warn("ETF quote fetch failed.", {
+      subject,
+      error: error?.message
+    });
+    quoteContext = {
+      unavailable: true,
+      note: "ETF 行情数据暂缺，需补抓取",
+      quotes: [],
+      missingSymbols: []
+    };
+  }
+
   const primaryPrompt = buildDailyBriefPrompt({
     date,
     researchContext,
     weatherContext,
-    podcastContext
+    podcastContext,
+    quoteContext
   });
   const retryPrompt = buildGroundingRetryPrompt({
     date,
     researchContext,
     weatherContext,
-    podcastContext
+    podcastContext,
+    quoteContext
   });
   const sourceFormatRetryPrompt = buildSourceFormatRetryPrompt({
     date,
     researchContext,
     weatherContext,
-    podcastContext
+    podcastContext,
+    quoteContext
   });
   const prompts = [
     { label: "full", body: primaryPrompt, retryOnTooFewSourceLines: true },
