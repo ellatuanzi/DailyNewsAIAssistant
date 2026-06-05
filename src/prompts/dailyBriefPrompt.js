@@ -1,17 +1,99 @@
-export function buildDailyBriefPrompt({ date, researchContext, weatherContext }) {
+const GETTY_WINDOW = "2026-06-05 到 2026-06-14（含）";
+const DEFAULT_SECTION_LIST =
+  "今日速览、天气、科技与 AI、科技投资观察、关注清单、宏观与市场、提前关注、网球、湾区周末去处、Getty Museum、随机拓展、Podcast、尾注";
+const PODCAST_SHOW_LIST =
+  "罗永浩的十字路口、知行小酒馆、起朱楼宴宾客、无人知晓";
+
+const GETTY_SECTION_RULES = `
+- 在 ${GETTY_WINDOW} 期间，必须额外加入“Getty Museum”分区，不要省略
+- “Getty Museum”分区放在“湾区周末去处”之后、“随机拓展”之前
+- 在 ${GETTY_WINDOW} 期间，“Getty Museum”分区每天固定写 1 条，优先基于 Getty 官方页面介绍 1 件正在展出的作品、一个展览、一个馆藏房间或一个主题单元：
+  - 结构尽量简洁：标题；一句话结论；展品/展览简介；为什么值得看；来源链接
+  - 优先覆盖 Getty Center 或 Getty Villa 当前可核验、对普通观众最容易理解的内容
+  - 摘要重点写作品本身、创作者、时代背景、观看线索或策展主题，不要写成旅游攻略
+  - 如果过去 24 小时内没有 Getty 新动态，也可以写“今日馆藏一看”或“今日展品卡片”；这类内容允许使用非 24 小时时效材料，但必须来自本次实时检索到的 Getty 官方公开页面或高可信馆方资料
+  - 若当天能确认近期特展、修复、开幕、闭幕、讲座或导览，则优先写这些有时间性的内容
+`;
+
+const ETF_FIXED_OBSERVATION_RULES = `
+- “科技投资观察”每天都必须单独覆盖 SMH 和 VGT：至少写出本次实时核验到的当前价格或最近可核验价格、最近 2 个交易日或过去 48 小时内的主要驱动因素，以及未来几天最值得盯的 2-4 个影响因素或催化剂
+- 写 SMH 和 VGT 时，不要只报价格；要尽量区分“过去两天发生了什么”与“未来几天还会看什么”，并点名更相关的核心成分股、行业链条或宏观变量
+- SMH 和 VGT 即使当天没有单独重大公告，也应在“科技投资观察”里作为固定观察对象出现；至少包含：价格 / 过去两天主因 / 未来几天关注点 / 来源
+`;
+
+const PODCAST_FETCH_RULES = `
+- “Podcast”检查以下节目过去 24 小时是否有新集：${PODCAST_SHOW_LIST}；有则写节目名、新集标题、发布时间、链接和简短中文摘要；没有则明确写“今日暂无新集”
+- “Podcast”分区必须优先使用下面提供的 Podcast 更新抓取结果，不要忽略其中已确认的新集；只有在该抓取结果不可用或明显不完整时，才回退到实时搜索补查
+- 如果 Podcast 更新抓取结果显示某节目过去 24 小时内有新集，就不能写成“今日暂无新集”
+`;
+
+const SOURCE_AND_VERIFICATION_RULES = `
+- 所有“过去 24 小时”“最新”“下一场比赛时间”“播客发布时间”“开赛日期”“退赛/伤病/公告”等时效性事实，都必须来自本次实时检索到的可核验来源，绝不能凭记忆补写
+- Getty Museum 分区优先使用 Getty 官方页面、Getty exhibitions 页面、馆藏页面、教育页面或音频导览页面；若引用媒体介绍，尽量补 Getty 官方页面
+- 所有“未来事件日期”“会议时间”“财报/发布会窗口”“联储会议或数据公布日”“比特币 ETF 或监管节点”等也必须来自本次实时检索到的可核验来源
+- 所有“股价触发条件”，包括 UPS 是否达到 120 美元，也必须来自本次实时检索到的可核验市场来源，并尽量注明是盘中、现价还是收盘
+- SMH 和 VGT 的价格、涨跌背景、未来几天要看的事件，也必须基于本次实时检索到的可核验来源；若只能拿到延迟行情或前收盘价，要明确写清是“延迟行情”“前收”还是“盘中”
+- 对 Reuters、官方博客、监管文件、赛事官网、Apple Podcasts 页面这类一手或高可信来源优先；若引用二手媒体，尽量同时给一手来源
+- 每条新闻的“来源：”优先写英文来源名与原始英文 URL；正文保持中文，但不要把中文媒体链接当主来源
+`;
+
+function buildPromptContext({ researchContext, weatherContext, podcastContext }) {
+  return `
+以下是本地研究资料摘要，请作为选题优先级参考：
+${JSON.stringify(researchContext, null, 2)}
+
+以下是已抓取的天气数据，请优先据此撰写“天气”分区，不要自行猜测温度：
+${JSON.stringify(weatherContext, null, 2)}
+
+以下是已抓取的 Podcast 更新结果；Podcast 分区优先以此为准：
+${JSON.stringify(podcastContext, null, 2)}
+`.trim();
+}
+
+function summarizeResearchContext(researchContext) {
+  const stock = researchContext?.stockAnalysis || {};
+  const supply = researchContext?.aiSupplyChain || {};
+
+  return {
+    stockSummary: stock.summary,
+    stockPriorityTopics: stock.priorityTopics?.slice(0, 6) || [],
+    stockPriorityCompanies: stock.priorityCompanies?.slice(0, 12) || [],
+    stockPreferredEtfs: stock.preferredEtfs?.slice(0, 6) || [],
+    aiSummary: supply.summary,
+    aiPriorityTopics: supply.priorityTopics?.slice(0, 8) || [],
+    aiPriorityCompanies: supply.priorityCompanies?.slice(0, 16) || [],
+    aiPreferredEtfs: supply.preferredEtfs?.slice(0, 8) || []
+  };
+}
+
+function buildRetryContext({ compactResearchContext, weatherContext, podcastContext }) {
+  return `
+个性化研究重点：
+${JSON.stringify(compactResearchContext, null, 2)}
+
+已抓取天气数据：
+${JSON.stringify(weatherContext, null, 2)}
+
+已抓取 Podcast 更新结果：
+${JSON.stringify(podcastContext, null, 2)}
+`.trim();
+}
+
+export function buildDailyBriefPrompt({ date, researchContext, weatherContext, podcastContext }) {
   return `
 你是一个中文个人早报编辑。请为 ${date} 生成手机端易读的中文早报正文。
 
 必须满足：
 - 输出为纯文本
 - 开头先写“今日速览”，用 4-6 条简短 bullet，总结最重要判断
-- 分区默认包括：今日速览、天气、科技与 AI、科技投资观察、关注清单、宏观与市场、提前关注、网球、湾区周末去处、随机拓展、Podcast、尾注
+- 分区默认包括：${DEFAULT_SECTION_LIST}
 - 在“随机拓展”里，默认至少保留 1 条艺术 / 哲学 / 思想视角拓展，不要省略；它可以是过去 24 小时内的可核验英文来源时事，也可以是在没有合格时效新闻时，改写为一条与当天主线相关的高质量“今日视角”
 - “随机拓展”里，默认至少保留 1 条 Stanford 课程知识卡片，不要省略；定位为“每天学点知识”，优先使用 Stanford MS&E 435 课程材料（https://mse435.stanford.edu/materials.html）或其他可核验的 Stanford 课程公开材料，讲清楚一个课程概念、框架或方法
 - 若“关注清单”当天无实质变化，可以省略
 - 若“网球”当天无实质更新且无未来 1-2 个月内值得提醒的美国重大赛事，可以省略
 - 若“提前关注”未来 7-21 天内没有足够明确、可能影响科技股/半导体/比特币/利率预期的大事件，可以省略
 - 若“湾区周末去处”近期没有足够高质量、时效性强的活动或展览，可以省略
+${GETTY_SECTION_RULES.trim()}
 - 若提到影响某个领域，点名 2-5 家核心公司
 - 这是给固定收件人的个人早报，不要写成通稿
 - 全文控制在手机端 3-5 分钟可读完，宁可少写，也不要堆砌
@@ -27,6 +109,7 @@ export function buildDailyBriefPrompt({ date, researchContext, weatherContext })
 - “科技投资观察”用“观察 / 影响 / 风险”三行结构，并明确“不是投资建议”
 - “科技投资观察”不能只写板块涨跌或情绪，必须优先回答“这件事会怎么改变产业链、盈利分配、资本开支、ETF 暴露或市场主线”
 - “科技投资观察”每一条都必须尽量同时交代 bull case 与 bear case：分别写清当前最主要的看涨驱动、看跌驱动、哪些属于短期交易叙事、哪些属于需要后续财报/订单/资本开支验证的基本面判断
+${ETF_FIXED_OBSERVATION_RULES.trim()}
 - 若讨论个股、ETF 或产业链方向，优先回答“市场为什么会继续上修预期”以及“市场为什么可能下修预期”，避免只给单边结论
 - 如果新闻涉及 NVIDIA、AMD、Intel、Qualcomm、Microsoft、Google、Amazon、Meta、Apple 等平台型公司进入新产品或新市场，必须尽量拆解：
   - 对公司自身意味着什么
@@ -50,7 +133,7 @@ export function buildDailyBriefPrompt({ date, researchContext, weatherContext })
 - 比特币若出现，重点写：ETF 资金流、监管/政策、宏观流动性、风险偏好、与科技高 Beta 资产联动的变化；不要写碎片化价格播报
 - “网球”优先写 Jannik Sinner 和 Carlos Alcaraz 的下一场比赛、伤病、退赛、签表、赛程变化，以及“对接下来有什么影响”
 - “湾区周末去处”优先写最近 7-14 天内值得去的 1 条，最多 2 条；每条包含标题、一句话推荐理由、时间/地点、为什么这周值得去、来源链接
-- “Podcast”检查以下节目过去 24 小时是否有新集：罗永浩的十字路口、知行小酒馆、起朱楼宴宾客、无人知晓；有则写节目名、新集标题、发布时间、链接和简短中文摘要；没有则明确写“今日暂无新集”
+${PODCAST_FETCH_RULES.trim()}
 - “随机拓展”默认写 2 条，不要少于 2 条：
   - 第 1 条必须是 Stanford 课程知识卡片，按“主题 / 今天学到什么 / 为什么值得学 / 和当下 AI、商业或投资框架有什么连接 / 来源”来写
   - 第 2 条必须是艺术 / 哲学 / 思想视角拓展；优先过去 24 小时内的英文来源时事，若当天缺少足够好的时效新闻，则退而求其次写成“今日视角”，基于高质量公开材料解释一个与当天主线相关的作品、观点、访谈、展览、文章或思想问题，并说明为什么今天值得看
@@ -65,11 +148,7 @@ export function buildDailyBriefPrompt({ date, researchContext, weatherContext })
   - 每条至少写：事件 / 日期或时间窗口 / 为什么要提前看 / 更相关的标的或板块
 - 最后加一句：本邮件仅供信息参考，不构成投资建议。
 
-以下是本地研究资料摘要，请作为选题优先级参考：
-${JSON.stringify(researchContext, null, 2)}
-
-以下是已抓取的天气数据，请优先据此撰写“天气”分区，不要自行猜测温度：
-${JSON.stringify(weatherContext, null, 2)}
+${buildPromptContext({ researchContext, weatherContext, podcastContext })}
 
 重要约束：
 - 如果你缺少最新新闻事实，不要编造
@@ -81,43 +160,30 @@ ${JSON.stringify(weatherContext, null, 2)}
 - 与中国相关的新闻只有在满足以下至少一条时才值得写入：直接影响 NVDA/AVGO/TSM/AMD/MSFT/GOOGL/AMZN/META/VGT/SMH/BTC；显著影响全球半导体或 AI 供应链；显著影响美国市场风险偏好、关税、出口管制或地缘风险
 - 如果一条中国新闻主要是中国本地政策、公司动态或舆论，但对北美投资者判断没有明确增量影响，就不要写
 - 所有“科技与 AI”“科技投资观察”“宏观与市场”“随机拓展”里的已发生新闻，原则上必须是过去 24 小时内发生或过去 24 小时内有实质新增进展；超过窗口的旧闻不要伪装成今天新闻
+- Getty Museum 分区是本次用户指定的限时补充栏目：在 ${GETTY_WINDOW} 期间，即使没有过去 24 小时内的新动态，也可以基于本次实时检索到的 Getty 官方页面写 1 条当期展品/展览介绍，但要明确它是“今日馆藏一看”或“今日展品卡片”，不要冒充成刚发生的新闻
 - 如果某条内容是旧事件但今天出现了新的公告、采访、监管文件、赛程变化或市场影响，必须在摘要里明确写出“今天新增了什么”，不要只重复背景
 - Stanford 课程卡片每天都要出现；必须明确写出课程主题或材料标题；它可以独立作为“今日学习”内容出现，不必强行伪装成当天新闻，但要说明这条知识为什么值得今天学
 - 如果写哲学或艺术拓展，必须说明它为什么与当天主线或当下时事相关；不要只罗列展讯或抽象感想
 - 若当天没有足够强的艺术/哲学时效新闻，也不要留空；请明确写成“今日视角”或“今日延伸阅读”，给出一条高质量拓展并解释它和今天主线的连接
-- 所有“过去 24 小时”“最新”“下一场比赛时间”“播客发布时间”“开赛日期”“退赛/伤病/公告”等时效性事实，都必须来自本次实时检索到的可核验来源，绝不能凭记忆补写
-- 所有“未来事件日期”“会议时间”“财报/发布会窗口”“联储会议或数据公布日”“比特币 ETF 或监管节点”等也必须来自本次实时检索到的可核验来源
-- 所有“股价触发条件”，包括 UPS 是否达到 120 美元，也必须来自本次实时检索到的可核验市场来源，并尽量注明是盘中、现价还是收盘
+${SOURCE_AND_VERIFICATION_RULES.trim()}
 - 如果某条新闻没有可靠来源链接，就不要写进正文
 - 宁可减少条数，也不要凑满数量；如果过去 24 小时内只能核验到 2-3 条重要新闻，就明确说明“可核验的重要更新有限”，只写已确认条目
 - 每个新闻条目都必须单独包含“来源：”一行，并给出可访问的来源名称和 URL；没有 URL 的条目一律不允许出现
-- 对 Reuters、官方博客、监管文件、赛事官网、Apple Podcasts 页面这类一手或高可信来源优先；若引用二手媒体，尽量同时给一手来源
-- 每条新闻的“来源：”优先写英文来源名与原始英文 URL；正文保持中文，但不要把中文媒体链接当主来源
 - 若写到“影响”或“利好/利空”，要尽量说明这是短期交易层面、基本面层面，还是仍待数据验证的判断，避免一句话带过
 - 如果你无法确认某个细节（例如比分、签表位置、对手、播客标题、发布时间），就明确写“待官方确认”或直接省略该细节
 - 如果天气数据缺失，要明确写“天气数据暂缺，需补抓取”，不要编造温度
 - 如果某个分区因为缺少可信的最新抓取而无法成文，要明确写“该分区缺少可核验的最新抓取，暂不展开”或“今日暂无新集”
+- 对 Podcast 分区，若 Podcast 更新抓取结果中 hasRecentEpisode 为 true，就必须列出对应新集；若全部为 false 且抓取可用，才可写“今日暂无新集”
 - 不要因为缺少资料就默默漏掉整个分区；只有在上面的省略条件明确满足时才省略
 `.trim();
 }
 
-function summarizeResearchContext(researchContext) {
-  const stock = researchContext?.stockAnalysis || {};
-  const supply = researchContext?.aiSupplyChain || {};
-
-  return {
-    stockSummary: stock.summary,
-    stockPriorityTopics: stock.priorityTopics?.slice(0, 6) || [],
-    stockPriorityCompanies: stock.priorityCompanies?.slice(0, 12) || [],
-    stockPreferredEtfs: stock.preferredEtfs?.slice(0, 6) || [],
-    aiSummary: supply.summary,
-    aiPriorityTopics: supply.priorityTopics?.slice(0, 8) || [],
-    aiPriorityCompanies: supply.priorityCompanies?.slice(0, 16) || [],
-    aiPreferredEtfs: supply.preferredEtfs?.slice(0, 8) || []
-  };
-}
-
-export function buildGroundingRetryPrompt({ date, researchContext, weatherContext }) {
+export function buildGroundingRetryPrompt({
+  date,
+  researchContext,
+  weatherContext,
+  podcastContext
+}) {
   const compactResearchContext = summarizeResearchContext(researchContext);
 
   return `
@@ -131,7 +197,8 @@ export function buildGroundingRetryPrompt({ date, researchContext, weatherContex
 - 正文用中文写，但默认优先英文来源并基于英文原文翻译摘要；没有可靠英文来源就不要写
 - 默认采用北美用户视角排序；中国相关内容只有在显著影响美国市场、全球科技供应链或你关注的美股/ETF 时才保留
 - Stanford 课程材料是“随机拓展”的必写来源，每天固定 1 条；目标是帮助收件人稳定积累知识，而不是只在当天新闻需要时才出现
-- “随机拓展”固定写 2 条：1 条 Stanford 课程知识卡片 + 1 条哲学 / 艺术 / 思想视角拓展
+- “随机拓展”固定写 2 条：1 条 Stanford 课程知识卡片 + 1 条哲学 / 艺术 / 思想视角拓展；但在 ${GETTY_WINDOW} 期间，Getty Museum 内容应放在独立分区，不要挤占这 2 条固定名额
+- Podcast 分区必须优先使用下面提供的 Podcast 更新抓取结果；如果其中已确认某节目有过去 24 小时新集，就不能写“今日暂无新集”
 - 每个新闻条目都必须单独包含“来源：来源名 URL”一行
 - 如果某条内容没有可核验 URL，就不要写入正文
 - 如果某个分区缺少足够可靠的最新抓取，请明确写“该分区缺少可核验的最新抓取，暂不展开”或“今日暂无新集”
@@ -147,13 +214,15 @@ export function buildGroundingRetryPrompt({ date, researchContext, weatherContex
 - 关注清单：仅在 NVDA、AVGO、TSM、AMD、MSFT、GOOGL、AMZN、META、VGT、SMH、BTC 出现过去 24 小时内实质变化时才写，格式固定为“标的 / 事件 / 影响 / 风险或待确认点 / 来源”
 - 宏观与市场：1-3 条
 - 网球：优先 Jannik Sinner 与 Carlos Alcaraz 的下一场比赛、伤病、退赛、赛程变化；若无实质更新且无 upcoming heads-up，可省略
+- Getty Museum：在 ${GETTY_WINDOW} 期间固定 1 条，优先 Getty 官方页面；没有新动态也可写 1 条“今日馆藏一看”或“今日展品卡片”
 - 随机拓展：固定 2 条，1 条 Stanford 课程知识卡片 + 1 条哲学 / 艺术 / 思想视角拓展
-- Podcast：检查罗永浩的十字路口、知行小酒馆、起朱楼宴宾客、无人知晓过去 24 小时是否有新集；没有就写“今日暂无新集”
+- Podcast：检查 ${PODCAST_SHOW_LIST} 过去 24 小时是否有新集；没有就写“今日暂无新集”
 - 尾注：本邮件仅供信息参考，不构成投资建议。
 
 内容规则：
 - 科技与 AI：只选过去 24 小时内最重要、最能改变判断的新闻
 - 科技投资观察：重点围绕 VGT、SMH、半导体、云计算、AI 基础设施、主要科技公司资本开支与产业链影响
+- 科技投资观察中，SMH 与 VGT 是固定必写项：每次至少交代当前价格、过去两天主要影响因素、未来几天主要影响因素，并说明更相关的成分股或宏观变量
 - 遇到 NVIDIA / NVDA 相关内容时，优先把黄仁勋的原话或核心观点转译成“市场正在交易什么逻辑”，并补足反方可能质疑的点，例如需求前置、客户集中、竞争加剧、资本开支回报、估值透支、监管限制或供应链瓶颈
 - 宏观与市场：优先美联储、利率预期、关税/监管、地缘风险，以及这些因素如何传导到科技与风险偏好
 - 随机拓展：不要只是凑趣味内容；艺术 / 哲学 / 思想视角必须帮助收件人拉开一点距离，看清当天主线背后的长期问题、叙事结构、价值冲突、审美变化或技术伦理
@@ -162,15 +231,16 @@ export function buildGroundingRetryPrompt({ date, researchContext, weatherContex
 - Podcast：如果只能看到标题和简短简介，必须明确写“基于公开简介的初步摘要”
 - 天气必须基于以下已抓取数据，不能自行猜测温度
 
-个性化研究重点：
-${JSON.stringify(compactResearchContext, null, 2)}
-
-已抓取天气数据：
-${JSON.stringify(weatherContext, null, 2)}
+${buildRetryContext({ compactResearchContext, weatherContext, podcastContext })}
 `.trim();
 }
 
-export function buildSourceFormatRetryPrompt({ date, researchContext, weatherContext }) {
+export function buildSourceFormatRetryPrompt({
+  date,
+  researchContext,
+  weatherContext,
+  podcastContext
+}) {
   const compactResearchContext = summarizeResearchContext(researchContext);
 
   return `
@@ -185,6 +255,8 @@ export function buildSourceFormatRetryPrompt({ date, researchContext, weatherCon
 - 默认采用北美用户视角；不重要的中国本地新闻不要混入正文
 - Stanford 课程卡片为必写栏目，必须把它写成“课程知识卡片/框架拓展”，不能冒充新闻更新
 - 哲学或艺术拓展为必写栏目，必须写成与当下新闻相关的“视角拓展”；若缺少合格时效新闻，就写成“今日视角”或“延伸阅读”，不要留空，也不要写成独立长篇评论
+- 在 ${GETTY_WINDOW} 期间，Getty Museum 为单独固定分区；优先写 1 条 Getty 官方可核验展品/展览介绍，即使没有过去 24 小时内新动态也不要省略，但必须明确它不是突发新闻
+- Podcast 分区必须优先尊重已抓取的 Podcast 更新结果；若其中显示有新集，不能写“今日暂无新集”
 - 每个新闻条目必须包含以下独立字段行：
   标题：
   一句话结论：
@@ -192,6 +264,7 @@ export function buildSourceFormatRetryPrompt({ date, researchContext, weatherCon
   为什么值得关注：
   来源：来源名 URL
 - 若条目涉及投资含义，摘要或“为什么值得关注”里要顺手交代最主要 bull case 与 bear case，不能只写单边叙事
+- SMH 和 VGT 条目必须显式包含价格信息，并说明这是实时价格、延迟行情还是最近收盘价
 - “来源：”这一行必须单独成行，不能省略，不能写成段落里的内嵌链接
 - 如果某条内容没有可核验 URL，就不要写入正文
 - 宁可少写，也不要编造
@@ -204,14 +277,11 @@ export function buildSourceFormatRetryPrompt({ date, researchContext, weatherCon
 - 科技投资观察：2-3 条，按“观察：/ 影响：/ 风险：/ 来源：”
 - 若写到 NVIDIA / NVDA，优先解释黄仁勋最新观点、bull case、bear case 与关键验证指标
 - 宏观与市场：1-3 条
+- Getty Museum：在 ${GETTY_WINDOW} 期间固定 1 条，采用“标题 / 一句话结论 / 摘要 / 为什么值得关注 / 来源”结构
 - 随机拓展：固定 2 条，1 条 Stanford 课程知识卡片 + 1 条艺术 / 哲学 / 思想视角拓展
 - Podcast：若无更新，写“今日暂无新集”
 - 尾注：本邮件仅供信息参考，不构成投资建议。
 
-个性化研究重点：
-${JSON.stringify(compactResearchContext, null, 2)}
-
-已抓取天气数据：
-${JSON.stringify(weatherContext, null, 2)}
+${buildRetryContext({ compactResearchContext, weatherContext, podcastContext })}
 `.trim();
 }

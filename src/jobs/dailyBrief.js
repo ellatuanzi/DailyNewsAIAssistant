@@ -4,6 +4,7 @@ import { loadResearchLibrary } from "../services/researchLibrary.js";
 import { createGeminiClient } from "../services/geminiClient.js";
 import { createDailyBriefState } from "../services/dailyBriefState.js";
 import { fetchDailyWeather } from "../services/weatherClient.js";
+import { fetchPodcastUpdates } from "../services/podcastClient.js";
 import {
   buildDailyBriefPrompt,
   buildGroundingRetryPrompt,
@@ -178,6 +179,7 @@ export async function runDailyBrief(options = {}) {
 
   const researchContext = await loadResearchLibrary(config.researchDir);
   let weatherContext;
+  let podcastContext;
   try {
     weatherContext = await fetchDailyWeather();
     if (weatherContext.partial) {
@@ -197,12 +199,44 @@ export async function runDailyBrief(options = {}) {
     };
   }
 
-  const primaryPrompt = buildDailyBriefPrompt({ date, researchContext, weatherContext });
-  const retryPrompt = buildGroundingRetryPrompt({ date, researchContext, weatherContext });
+  try {
+    podcastContext = await fetchPodcastUpdates();
+    if (podcastContext.partial) {
+      warn("Podcast fetch partially failed.", {
+        subject,
+        failures: podcastContext.failures
+      });
+    }
+  } catch (error) {
+    warn("Podcast fetch failed.", {
+      subject,
+      error: error?.message
+    });
+    podcastContext = {
+      unavailable: true,
+      note: "Podcast 数据暂缺，需补抓取",
+      podcasts: [],
+      failures: []
+    };
+  }
+
+  const primaryPrompt = buildDailyBriefPrompt({
+    date,
+    researchContext,
+    weatherContext,
+    podcastContext
+  });
+  const retryPrompt = buildGroundingRetryPrompt({
+    date,
+    researchContext,
+    weatherContext,
+    podcastContext
+  });
   const sourceFormatRetryPrompt = buildSourceFormatRetryPrompt({
     date,
     researchContext,
-    weatherContext
+    weatherContext,
+    podcastContext
   });
   const prompts = [
     { label: "full", body: primaryPrompt, retryOnTooFewSourceLines: true },
