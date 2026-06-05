@@ -27,6 +27,13 @@ const PODCAST_FETCH_RULES = `
 - 如果 Podcast 更新抓取结果显示某节目过去 24 小时内有新集，就不能写成“今日暂无新集”
 `;
 
+const TENNIS_TOUR_RULES = `
+- “网球”不只写球员八卦或单场比分；必须优先覆盖赛事主线与签表进展，尤其是四大满贯、ATP/WTA 1000、ATP/WTA 500、ATP/WTA 250、ATP Finals、WTA Finals、Davis Cup、Billie Jean King Cup、Laver Cup、奥运网球等主要赛事
+- 如果正处于四大满贯、ATP/WTA 1000 或其他重要赛事窗口，优先写：赛事轮次、焦点对阵、签表变化、退赛/伤病、赛程调整、晋级路径，以及这些变化对后续比赛的影响
+- 若过去 24 小时内有重要比赛结果，优先写“对赛事走势和下一轮有什么影响”，不要只堆砌比分
+- 若 upcoming 的重要比赛在未来几天内将开打，也可以写 ATP / WTA 巡回赛、四大满贯或团体赛事的前瞻，至少说明赛事名称、级别、轮次或阶段、关键对阵/看点、来源
+`;
+
 const SOURCE_AND_VERIFICATION_RULES = `
 - 所有“过去 24 小时”“最新”“下一场比赛时间”“播客发布时间”“开赛日期”“退赛/伤病/公告”等时效性事实，都必须来自本次实时检索到的可核验来源，绝不能凭记忆补写
 - Getty Museum 分区优先使用 Getty 官方页面、Getty exhibitions 页面、馆藏页面、教育页面或音频导览页面；若引用媒体介绍，尽量补 Getty 官方页面
@@ -151,6 +158,7 @@ ${ETF_FIXED_OBSERVATION_RULES.trim()}
   - 如果无法核验最新价格或触发时点，就不要写成已触发
 - 比特币若出现，重点写：ETF 资金流、监管/政策、宏观流动性、风险偏好、与科技高 Beta 资产联动的变化；不要写碎片化价格播报
 - “网球”优先写 Jannik Sinner 和 Carlos Alcaraz 的下一场比赛、伤病、退赛、签表、赛程变化，以及“对接下来有什么影响”
+${TENNIS_TOUR_RULES.trim()}
 - “湾区周末去处”优先写最近 7-14 天内值得去的 1 条，最多 2 条；每条包含标题、一句话推荐理由、时间/地点、为什么这周值得去、来源链接
 ${PODCAST_FETCH_RULES.trim()}
 - “随机拓展”默认写 2 条，不要少于 2 条：
@@ -236,6 +244,7 @@ export function buildGroundingRetryPrompt({
 - 关注清单：仅在 NVDA、AVGO、TSM、AMD、MSFT、GOOGL、AMZN、META、VGT、SMH、BTC 出现过去 24 小时内实质变化时才写，格式固定为“标的 / 事件 / 影响 / 风险或待确认点 / 来源”
 - 宏观与市场：1-3 条
 - 网球：优先 Jannik Sinner 与 Carlos Alcaraz 的下一场比赛、伤病、退赛、赛程变化；若无实质更新且无 upcoming heads-up，可省略
+- 网球：若处于四大满贯、ATP/WTA 1000 或其他重要赛事窗口，优先交代赛事级别、轮次、关键对阵、签表变化和后续影响
 - Getty Museum：在 ${GETTY_WINDOW} 期间固定 1 条，优先 Getty 官方页面；没有新动态也可写 1 条“今日馆藏一看”或“今日展品卡片”
 - 随机拓展：固定 2 条，1 条 Stanford 课程知识卡片 + 1 条哲学 / 艺术 / 思想视角拓展
 - Podcast：检查 ${PODCAST_SHOW_LIST} 过去 24 小时是否有新集；没有就写“今日暂无新集”
@@ -250,6 +259,7 @@ export function buildGroundingRetryPrompt({
 - 随机拓展：不要只是凑趣味内容；艺术 / 哲学 / 思想视角必须帮助收件人拉开一点距离，看清当天主线背后的长期问题、叙事结构、价值冲突、审美变化或技术伦理
 - 随机拓展里的 Stanford 课程卡片必须帮助收件人稳定积累框架；优先解释一个概念如何帮助理解当天的 AI、平台竞争、资本开支、GPU 经济或市场叙事
 - 网球：优先写“接下来有什么影响”，不要堆比分
+- 网球：优先覆盖四大满贯、ATP/WTA 巡回赛和重要团体赛事主线，不要只写零散球员动态
 - Podcast：如果只能看到标题和简短简介，必须明确写“基于公开简介的初步摘要”
 - 天气必须基于以下已抓取数据，不能自行猜测温度
 
