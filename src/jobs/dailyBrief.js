@@ -48,6 +48,41 @@ function getSourceLineCount(body) {
   return countSourceLines(body);
 }
 
+function appendGroundingSources(body, grounding, minimumSources = 6) {
+  const currentCount = getSourceLineCount(body);
+
+  if (currentCount >= minimumSources) {
+    return {
+      body,
+      sourceLineCount: currentCount
+    };
+  }
+
+  const chunks = grounding?.chunks || [];
+  const seenUris = new Set();
+  const sourceLines = [];
+
+  for (const chunk of chunks) {
+    if (!chunk?.uri || seenUris.has(chunk.uri)) continue;
+    seenUris.add(chunk.uri);
+    sourceLines.push(`来源：${chunk.title || "Source"} ${chunk.uri}`);
+  }
+
+  if (sourceLines.length === 0) {
+    return {
+      body,
+      sourceLineCount: currentCount
+    };
+  }
+
+  const mergedBody = `${body.trim()}\n\n补充来源：\n${sourceLines.join("\n")}`;
+
+  return {
+    body: mergedBody,
+    sourceLineCount: getSourceLineCount(mergedBody)
+  };
+}
+
 async function generateDailyBrief({ gemini, config, subject, prompts }) {
   let lastError;
 
@@ -57,10 +92,11 @@ async function generateDailyBrief({ gemini, config, subject, prompts }) {
     try {
       const generation = await gemini.generateText(prompt.body, {
         grounded: config.geminiUseGoogleSearch,
-        requireGrounding: config.dailyBriefRequireGrounding
+        requireGrounding: prompt.requireGrounding ?? config.dailyBriefRequireGrounding
       });
 
-      const sourceLineCount = getSourceLineCount(generation.text);
+      const normalized = appendGroundingSources(generation.text, generation.grounding);
+      const sourceLineCount = normalized.sourceLineCount;
       const needsSourceFormatRetry =
         prompt.retryOnTooFewSourceLines === true &&
         sourceLineCount < 6 &&
@@ -78,6 +114,7 @@ async function generateDailyBrief({ gemini, config, subject, prompts }) {
 
       return {
         ...generation,
+        text: normalized.body,
         attemptLabel: prompt.label,
         attemptNumber: attempt + 1,
         sourceLineCount
@@ -265,16 +302,23 @@ export async function runDailyBrief(options = {}) {
     quoteContext
   });
   const prompts = [
-    { label: "full", body: primaryPrompt, retryOnTooFewSourceLines: true },
+    {
+      label: "full",
+      body: primaryPrompt,
+      retryOnTooFewSourceLines: true,
+      requireGrounding: config.dailyBriefRequireGrounding
+    },
     {
       label: "compact-grounding-retry",
       body: retryPrompt,
-      retryOnTooFewSourceLines: true
+      retryOnTooFewSourceLines: true,
+      requireGrounding: config.dailyBriefRequireGrounding
     },
     {
       label: "source-format-retry",
       body: sourceFormatRetryPrompt,
-      retryOnTooFewSourceLines: false
+      retryOnTooFewSourceLines: false,
+      requireGrounding: false
     }
   ];
   const promptLength = primaryPrompt.length;
