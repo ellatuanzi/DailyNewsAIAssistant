@@ -1,8 +1,9 @@
 import { getConfig } from "../config.js";
-import { createGmailClient } from "../services/gmailClient.js";
+import { createEmailClient } from "../services/emailClient.js";
 import { loadResearchLibrary } from "../services/researchLibrary.js";
 import { createGeminiClient } from "../services/geminiClient.js";
 import { createDailyBriefState } from "../services/dailyBriefState.js";
+import { createAutomationStateStore } from "../services/automationStateStore.js";
 import { fetchDailyWeather } from "../services/weatherClient.js";
 import { fetchPodcastUpdates } from "../services/podcastClient.js";
 import { fetchEtfQuotes } from "../services/financeClient.js";
@@ -157,9 +158,10 @@ export async function runDailyBrief(options = {}) {
     throw new Error("Missing required environment variable for daily brief: GEMINI_API_KEY");
   }
 
-  const gmail = createGmailClient(config);
+  const email = createEmailClient(config);
   const gemini = createGeminiClient(config);
-  const briefState = createDailyBriefState({ gmail, config });
+  const stateStore = createAutomationStateStore(config);
+  const briefState = createDailyBriefState({ stateStore, config });
   const date = todayInTimeZone(config.timezone);
   const subject = `每日定制早报 - ${date}`;
   const { hour } = localTimeParts(config.timezone);
@@ -177,11 +179,15 @@ export async function runDailyBrief(options = {}) {
   const sentChecks = await Promise.all(
     recipients.map(async (recipient) => ({
       recipient,
-      messages: await gmail.search(`in:sent to:${recipient} subject:"${subject}"`, 10)
+      alreadySent: await stateStore.hasDailyBriefBeenSent({
+        date,
+        subject,
+        recipient
+      })
     }))
   );
   const alreadySentRecipients = sentChecks
-    .filter(({ messages }) => messages.length > 0)
+    .filter(({ alreadySent }) => alreadySent)
     .map(({ recipient }) => recipient);
 
   if (!force && alreadySentRecipients.length > 0) {
@@ -361,11 +367,23 @@ export async function runDailyBrief(options = {}) {
   const body = generation.text;
   validateDailyBriefBody(body);
 
-  const sent = await gmail.sendMail({
+  const sent = await email.sendMail({
     to: recipientHeader,
     subject,
     body
   });
+
+  await Promise.all(
+    recipients.map((recipient) =>
+      stateStore.recordDailyBriefSent({
+        date,
+        subject,
+        recipient,
+        messageId: sent.id,
+        provider: config.emailProvider
+      })
+    )
+  );
 
   log("Daily brief sent.", {
     subject,

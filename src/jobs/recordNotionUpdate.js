@@ -1,5 +1,5 @@
 import { getConfig } from "../config.js";
-import { createGmailClient } from "../services/gmailClient.js";
+import { createAutomationStateStore } from "../services/automationStateStore.js";
 import { createPendingSyncState } from "../services/pendingSyncState.js";
 import { log } from "../lib/logger.js";
 
@@ -9,8 +9,8 @@ export async function recordNotionUpdate(args) {
   }
 
   const config = getConfig();
-  const gmail = createGmailClient(config);
-  const pendingState = createPendingSyncState({ gmail, config });
+  const stateStore = createAutomationStateStore(config);
+  const pendingState = createPendingSyncState({ stateStore, config });
 
   const result = await pendingState.recordPending({
     pageId: args["page-id"],
@@ -21,6 +21,6 @@ export async function recordNotionUpdate(args) {
   log("Recorded pending Notion sync state.", {
     pageId: args["page-id"],
     pageTitle: args["page-title"],
-    messageId: result.id
+    recordedAt: result.createdAt
   });
 }

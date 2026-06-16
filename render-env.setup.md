@@ -40,6 +40,12 @@ The current [`render.yaml`](/Users/qingcai/Documents/Morning%20News/render.yaml)
 GEMINI_API_KEY
 GEMINI_MODEL
 GEMINI_TEMPERATURE
+EMAIL_PROVIDER
+EMAIL_SENDER
+RESEND_API_KEY
+STATE_PROVIDER
+UPSTASH_REDIS_REST_URL
+UPSTASH_REDIS_REST_TOKEN
 GMAIL_CLIENT_ID
 GMAIL_CLIENT_SECRET
 GMAIL_REFRESH_TOKEN
@@ -48,6 +54,7 @@ RECIPIENT_EMAILS
 PENDING_SYNC_TO_EMAIL
 TIMEZONE
 RESEARCH_DIR
+STATE_DIR
 APP_ENV
 DAILY_BRIEF_MAX_PROMPT_CHARS
 DAILY_BRIEF_MAX_OUTPUT_TOKENS
@@ -56,12 +63,18 @@ DAILY_BRIEF_ALLOW_AFTER_BUDGET_STOP
 
 ## Notes
 
-- `GMAIL_SENDER`: the Gmail account that actually sends the email
+- `EMAIL_PROVIDER`: set to `resend` for the recommended long-term setup; keep `gmail` only as fallback
+- `EMAIL_SENDER`: the verified sender identity, for example `Morning News <brief@yourdomain.com>`
+- `RESEND_API_KEY`: required when `EMAIL_PROVIDER=resend`
+- `STATE_PROVIDER`: use `upstash-redis` on Render for durable dedupe and reminders; keep `file` only for local development
+- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`: required when `STATE_PROVIDER=upstash-redis`
+- `GMAIL_SENDER`: legacy Gmail sender field; only needed when `EMAIL_PROVIDER=gmail`
 - `RECIPIENT_EMAILS`: comma-separated morning brief recipients
 - `PENDING_SYNC_TO_EMAIL`: who receives the next-day GitHub sync confirmation email
+- `STATE_DIR`: local fallback path when `STATE_PROVIDER=file`
 - `DAILY_BRIEF_ALLOW_AFTER_BUDGET_STOP=false`: if Gemini returns quota/billing exhaustion, the automation records a stop marker and future runs will not call the model again until you explicitly override
 - `DAILY_BRIEF_MAX_PROMPT_CHARS`: hard-fails if prompt/context grows unexpectedly
 - `DAILY_BRIEF_MAX_OUTPUT_TOKENS`: caps output size and therefore spend
-- Duplicate sends are prevented by checking each configured recipient for the day's final brief subject before generating
+- Duplicate sends are prevented by the configured state store, not by querying a mailbox
 - Do not commit real secret values into GitHub
 - `.env.render` is gitignored and intended for local-only storage

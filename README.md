@@ -10,7 +10,8 @@ This repository packages the daily Chinese morning brief as a deployable Render 
 ## Current architecture
 
 - Runtime: Node.js on Render Cron Jobs
-- Delivery and state: Gmail API
+- Delivery: Gmail API or Resend API
+- State and dedupe: `Upstash Redis` via REST for production, local JSONL event store in `.state/` for fallback
 - LLM generation: Gemini API with Google Search grounding required for the daily brief
 - Research source of truth for production: local files in `research/`
 - Notion usage: optional authoring workspace only, not a runtime dependency for the daily brief
@@ -33,18 +34,30 @@ This avoids daylight-saving drift because Render cron schedules use UTC accordin
 - `GEMINI_TEMPERATURE`
 - `GEMINI_USE_GOOGLE_SEARCH`
 
-### Gmail
+### Delivery
+
+- `EMAIL_PROVIDER`: `gmail` or `resend`
+- `EMAIL_SENDER`
+- `RECIPIENT_EMAILS` or `RECIPIENT_EMAIL`
+
+### Resend
+
+- `RESEND_API_KEY`
+
+### Gmail fallback
 
 - `GMAIL_CLIENT_ID`
 - `GMAIL_CLIENT_SECRET`
 - `GMAIL_REFRESH_TOKEN`
-- `GMAIL_SENDER`
-- `RECIPIENT_EMAILS` or `RECIPIENT_EMAIL`
 
 ### App config
 
 - `TIMEZONE`
 - `RESEARCH_DIR`
+- `STATE_PROVIDER`
+- `STATE_DIR`
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
 - `PENDING_SYNC_TO_EMAIL`
 - `DAILY_BRIEF_MAX_PROMPT_CHARS`
 - `DAILY_BRIEF_MAX_OUTPUT_TOKENS`
@@ -60,7 +73,7 @@ This avoids daylight-saving drift because Render cron schedules use UTC accordin
 ## Research sync workflow
 
 1. We update the working Notion pages during research.
-2. A manual or scripted `record-notion-update` call records a pending sync reminder in Gmail state.
+2. A manual or scripted `record-notion-update` call records a pending sync reminder in local automation state.
 3. The next day, `check-sync-prompts` asks whether those Notion updates should also be synced into GitHub.
 4. Only after confirmation do we update `research/` files and open a PR or commit the changes.
 
@@ -79,7 +92,8 @@ Recommended guardrails:
 - Keep `DAILY_BRIEF_MAX_OUTPUT_TOKENS` capped so long outputs cannot silently expand spend.
 - Keep `DAILY_BRIEF_MAX_PROMPT_CHARS` capped so research/context growth fails fast instead of billing unexpectedly.
 - Keep `DAILY_BRIEF_ALLOW_AFTER_BUDGET_STOP=false` so quota/billing failures trip a persistent stop until we manually re-enable.
-- Duplicate sends are prevented by checking each configured recipient's sent history for the day's final brief subject before generating.
+- On Render, use `STATE_PROVIDER=upstash-redis` so dedupe and reminders survive between cron runs.
+- Keep `.state/` only for local development or as a fallback when `STATE_PROVIDER=file`.
 
 Validate configuration:
 

@@ -36,7 +36,7 @@ export function createGmailClient(config) {
 
     async sendMail({ to, subject, body }) {
       const raw = [
-        `From: ${config.gmailSender}`,
+        `From: ${config.emailSender}`,
         `To: ${to}`,
         "Content-Type: text/plain; charset=utf-8",
         "Content-Transfer-Encoding: 8bit",

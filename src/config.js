@@ -25,6 +25,10 @@ function parseEmailList(value) {
     .filter(Boolean);
 }
 
+function normalizeStateProvider(value) {
+  return (value || "file").trim().toLowerCase();
+}
+
 export function getConfig() {
   const recipientEmails = parseEmailList(
     optional("RECIPIENT_EMAILS", process.env.RECIPIENT_EMAIL || "")
@@ -34,10 +38,20 @@ export function getConfig() {
     throw new Error("Missing required environment variable: RECIPIENT_EMAILS or RECIPIENT_EMAIL");
   }
 
-  return {
+  const emailProvider = optional("EMAIL_PROVIDER", "gmail");
+  const emailSender = optional("EMAIL_SENDER", process.env.GMAIL_SENDER);
+  const stateProvider = normalizeStateProvider(optional("STATE_PROVIDER", "file"));
+
+  if (!emailSender) {
+    throw new Error("Missing required environment variable: EMAIL_SENDER");
+  }
+
+  const config = {
     appEnv: process.env.APP_ENV || "development",
     timezone: process.env.TIMEZONE || "America/Los_Angeles",
     researchDir: process.env.RESEARCH_DIR || path.resolve(process.cwd(), "research"),
+    stateDir: process.env.STATE_DIR || path.resolve(process.cwd(), ".state"),
+    stateProvider,
     geminiApiKey: optional("GEMINI_API_KEY"),
     geminiModel: optional("GEMINI_MODEL", "gemini-2.5-flash"),
     geminiTemperature: Number(optional("GEMINI_TEMPERATURE", "0.2")),
@@ -52,12 +66,63 @@ export function getConfig() {
       process.env.DAILY_BRIEF_ALLOW_AFTER_BUDGET_STOP,
       false
     ),
-    gmailClientId: required("GMAIL_CLIENT_ID"),
-    gmailClientSecret: required("GMAIL_CLIENT_SECRET"),
-    gmailRefreshToken: required("GMAIL_REFRESH_TOKEN"),
-    gmailSender: required("GMAIL_SENDER"),
+    emailProvider,
+    emailSender,
     recipientEmail: recipientEmails[0],
     recipientEmails,
     pendingSyncToEmail: process.env.PENDING_SYNC_TO_EMAIL || recipientEmails[0]
   };
+
+  if (emailProvider === "resend") {
+    const resendConfig = {
+      ...config,
+      resendApiKey: required("RESEND_API_KEY")
+    };
+
+    if (stateProvider === "upstash-redis") {
+      return {
+        ...resendConfig,
+        upstashRedisRestUrl: required("UPSTASH_REDIS_REST_URL"),
+        upstashRedisRestToken: required("UPSTASH_REDIS_REST_TOKEN")
+      };
+    }
+
+    if (stateProvider === "file") {
+      return resendConfig;
+    }
+
+    throw new Error(
+      `Unsupported STATE_PROVIDER: ${stateProvider}. Expected "file" or "upstash-redis".`
+    );
+  }
+
+  if (emailProvider === "gmail") {
+    if (stateProvider === "upstash-redis") {
+      return {
+        ...config,
+        gmailClientId: required("GMAIL_CLIENT_ID"),
+        gmailClientSecret: required("GMAIL_CLIENT_SECRET"),
+        gmailRefreshToken: required("GMAIL_REFRESH_TOKEN"),
+        upstashRedisRestUrl: required("UPSTASH_REDIS_REST_URL"),
+        upstashRedisRestToken: required("UPSTASH_REDIS_REST_TOKEN")
+      };
+    }
+
+    if (stateProvider === "file") {
+      return {
+        ...config,
+        gmailClientId: required("GMAIL_CLIENT_ID"),
+        gmailClientSecret: required("GMAIL_CLIENT_SECRET"),
+        gmailRefreshToken: required("GMAIL_REFRESH_TOKEN")
+      };
+    }
+
+    throw new Error(
+      `Unsupported STATE_PROVIDER: ${stateProvider}. Expected "file" or "upstash-redis".`
+    );
+  }
+
+  throw new Error(
+    `Unsupported EMAIL_PROVIDER: ${emailProvider}. Expected "gmail" or "resend".`
+  );
 }

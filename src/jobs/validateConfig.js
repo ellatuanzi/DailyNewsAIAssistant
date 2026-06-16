@@ -7,12 +7,19 @@ export async function validateConfig() {
     appEnv: config.appEnv,
     timezone: config.timezone,
     researchDir: config.researchDir,
+    stateDir: config.stateDir,
+    emailProvider: config.emailProvider,
+    emailSender: config.emailSender,
+    stateProvider: config.stateProvider,
+    upstashRedisConfigured:
+      config.stateProvider === "upstash-redis"
+        ? Boolean(config.upstashRedisRestUrl && config.upstashRedisRestToken)
+        : false,
     recipientEmail: config.recipientEmail,
     recipientEmails: config.recipientEmails,
     geminiModel: config.geminiModel,
     dailyBriefMaxPromptChars: config.dailyBriefMaxPromptChars,
     dailyBriefMaxOutputTokens: config.dailyBriefMaxOutputTokens,
-    dailyBriefMaxLlmAttemptsPerDay: config.dailyBriefMaxLlmAttemptsPerDay,
     dailyBriefAllowAfterBudgetStop: config.dailyBriefAllowAfterBudgetStop
   });
 }

@@ -1,15 +1,18 @@
 import { getConfig } from "../config.js";
-import { createGmailClient } from "../services/gmailClient.js";
+import { createEmailClient } from "../services/emailClient.js";
+import { createAutomationStateStore } from "../services/automationStateStore.js";
 import { createPendingSyncState } from "../services/pendingSyncState.js";
 import { log } from "../lib/logger.js";
 import { localTimeParts, todayInTimeZone, yesterdayInTimeZone } from "../lib/time.js";
 
 export async function runSyncPromptCheck() {
   const config = getConfig();
-  const gmail = createGmailClient(config);
-  const pendingState = createPendingSyncState({ gmail, config });
+  const email = createEmailClient(config);
+  const stateStore = createAutomationStateStore(config);
+  const pendingState = createPendingSyncState({ stateStore, config });
   const { hour } = localTimeParts(config.timezone);
   const promptDate = todayInTimeZone(config.timezone);
+  const subject = `确认是否同步 GitHub 研究文件 - ${yesterdayInTimeZone(config.timezone)}`;
 
   if (hour < 9) {
     log("Sync prompt trigger fired before local send window. Skipping.", {
@@ -19,12 +22,13 @@ export async function runSyncPromptCheck() {
     return;
   }
 
-  const alreadySent = await gmail.search(
-    `in:sent to:${config.pendingSyncToEmail} subject:"确认是否同步 GitHub 研究文件 - ${promptDate}"`,
-    10
-  );
+  const alreadySent = await stateStore.hasSyncPromptBeenSent({
+    date: promptDate,
+    subject,
+    recipient: config.pendingSyncToEmail
+  });
 
-  if (alreadySent.length > 0) {
+  if (alreadySent) {
     log("Sync confirmation already sent today. Skipping.", {
       date: promptDate
     });
@@ -40,7 +44,6 @@ export async function runSyncPromptCheck() {
     return;
   }
 
-  const subject = `确认是否同步 GitHub 研究文件 - ${yesterdayInTimeZone(config.timezone)}`;
   const body = [
     "昨天我更新了相关 Notion 研究页面。",
     "",
@@ -51,10 +54,19 @@ export async function runSyncPromptCheck() {
     "这是一封确认邮件，不会自动改 GitHub 内容。"
   ].join("\n");
 
-  const sent = await gmail.sendMail({
+  const sent = await email.sendMail({
     to: config.pendingSyncToEmail,
     subject,
     body
+  });
+
+  await stateStore.recordSyncPromptSent({
+    date: promptDate,
+    subject,
+    recipient: config.pendingSyncToEmail,
+    messageId: sent.id,
+    provider: config.emailProvider,
+    pendingCount: pending.length
   });
 
   log("Sent sync confirmation email.", {
