@@ -34,6 +34,16 @@ export function createGmailClient(config) {
       return response.data.messages || [];
     },
 
+    async hasSentMessage({ to, subject }) {
+      const query = [
+        "in:sent",
+        `to:${to}`,
+        `subject:\"${subject.replace(/\"/g, "\\\"")}\"`
+      ].join(" ");
+      const messages = await this.search(query, 1);
+      return messages.length > 0;
+    },
+
     async sendMail({ to, subject, body }) {
       const raw = [
         `From: ${config.emailSender}`,

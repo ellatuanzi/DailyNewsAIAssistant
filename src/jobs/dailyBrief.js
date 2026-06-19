@@ -49,6 +49,21 @@ function getSourceLineCount(body) {
   return countSourceLines(body);
 }
 
+async function filterRecipientsWithVerifiedSentMail({ email, subject, recipients }) {
+  if (typeof email.hasSentMessage !== "function") {
+    return recipients;
+  }
+
+  const checks = await Promise.all(
+    recipients.map(async (recipient) => ({
+      recipient,
+      verified: await email.hasSentMessage({ to: recipient, subject })
+    }))
+  );
+
+  return checks.filter(({ verified }) => verified).map(({ recipient }) => recipient);
+}
+
 function appendGroundingSources(body, grounding, minimumSources = 6) {
   const currentCount = getSourceLineCount(body);
 
@@ -166,7 +181,6 @@ export async function runDailyBrief(options = {}) {
   const subject = `每日定制早报 - ${date}`;
   const { hour } = localTimeParts(config.timezone);
   const recipients = config.recipientEmails;
-  const recipientHeader = recipients.join(", ");
 
   if (!force && hour < 7) {
     log("Daily brief trigger fired before local send window. Skipping.", {
@@ -190,13 +204,42 @@ export async function runDailyBrief(options = {}) {
     .filter(({ alreadySent }) => alreadySent)
     .map(({ recipient }) => recipient);
 
-  if (!force && alreadySentRecipients.length > 0) {
-    log("Daily brief already sent. Skipping.", {
+  const verifiedSentRecipients = await filterRecipientsWithVerifiedSentMail({
+    email,
+    subject,
+    recipients: alreadySentRecipients
+  });
+
+  const recipientsToSend = force
+    ? recipients
+    : recipients.filter((recipient) => !verifiedSentRecipients.includes(recipient));
+
+  if (!force && verifiedSentRecipients.length > 0) {
+    const unverifiedRecipients = alreadySentRecipients.filter(
+      (recipient) => !verifiedSentRecipients.includes(recipient)
+    );
+
+    if (unverifiedRecipients.length > 0) {
+      warn("Daily brief state indicated sent, but mailbox verification failed for some recipients.", {
+        subject,
+        unverifiedRecipients
+      });
+    }
+
+    if (recipientsToSend.length === 0) {
+      log("Daily brief already sent. Skipping.", {
+        subject,
+        recipients,
+        alreadySentRecipients: verifiedSentRecipients
+      });
+      return;
+    }
+
+    warn("Daily brief will resend only to recipients missing verified sent mail.", {
       subject,
-      recipients,
-      alreadySentRecipients
+      alreadySentRecipients: verifiedSentRecipients,
+      recipientsToSend
     });
-    return;
   }
 
   if (force) {
@@ -367,6 +410,7 @@ export async function runDailyBrief(options = {}) {
   const body = generation.text;
   validateDailyBriefBody(body);
 
+  const recipientHeader = recipientsToSend.join(", ");
   const sent = await email.sendMail({
     to: recipientHeader,
     subject,
@@ -374,7 +418,7 @@ export async function runDailyBrief(options = {}) {
   });
 
   await Promise.all(
-    recipients.map((recipient) =>
+    recipientsToSend.map((recipient) =>
       stateStore.recordDailyBriefSent({
         date,
         subject,
@@ -387,7 +431,7 @@ export async function runDailyBrief(options = {}) {
 
   log("Daily brief sent.", {
     subject,
-    recipients,
+    recipients: recipientsToSend,
     messageId: sent.id,
     generationAttemptLabel: generation.attemptLabel,
     generationAttemptNumber: generation.attemptNumber,
