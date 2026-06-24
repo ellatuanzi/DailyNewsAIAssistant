@@ -1,5 +1,7 @@
-const DEFAULT_SECTION_LIST =
+const MORNING_SECTION_LIST =
   "今日速览、科技与 AI、科技投资观察、关注清单、宏观与市场、网球、随机拓展、Podcast、尾注";
+const MIDDAY_SECTION_LIST =
+  "今日速览、今日主题、展开、湾区活动、顺手拓展、尾注";
 const PODCAST_SHOW_LIST =
   "罗永浩的十字路口、知行小酒馆、起朱楼宴宾客、无人知晓";
 const WATCHLIST =
@@ -47,14 +49,14 @@ ${JSON.stringify(quoteContext, null, 2)}
 `.trim();
 }
 
-function buildCoreRules(date) {
+function buildMorningCoreRules(date) {
   return `
 你是一个中文个人早报编辑。请先实时检索，再为 ${date} 生成手机端易读的中文早报正文。
 
 硬性要求：
 - 输出纯文本，不要输出 Markdown 表格，不要输出 HTML
 - 开头必须先写“今日速览”，用 4-6 条短 bullet 概括今天最重要的判断，每条尽量不超过一行半
-- 正文默认分区为：${DEFAULT_SECTION_LIST}
+- 正文默认分区为：${MORNING_SECTION_LIST}
 - 全文以北美读者视角组织，优先美国市场、科技公司、AI、半导体、云计算、监管、重大赛事
 - 所有“过去 24 小时”“最新”“下一场比赛时间”“播客发布时间”“开赛日期”等时效性信息，都必须来自本次实时检索到的可核验来源
 - 来源优先级：公司公告、官方博客、监管文件、ETF 官方页面、ATP/WTA/Grand Slam 官方页面、Apple Podcasts 页面、Reuters、AP、Bloomberg、WSJ、FT、ESPN、The Athletic、主流科技媒体
@@ -67,7 +69,7 @@ function buildCoreRules(date) {
 `.trim();
 }
 
-function buildSectionRules() {
+function buildMorningSectionRules() {
   return `
 分区规则：
 - 科技与 AI：选 4-6 条过去 24 小时内最重要、最能改变判断的新闻；优先 AI、半导体、云、AI 基础设施、主要科技平台和 AI 应用层
@@ -104,8 +106,64 @@ function buildSectionRules() {
 `.trim();
 }
 
+function buildMiddayCoreRules(date) {
+  return `
+你是一个中文个人中午拓展编辑。请先实时检索，再为 ${date} 生成一封手机端易读、适合 2-4 分钟阅读的中文中午版邮件正文。
+
+硬性要求：
+- 输出纯文本，不要输出 Markdown 表格，不要输出 HTML
+- 开头必须先写“今日速览”，用 3-5 条短 bullet 说明今天这封为什么值得读
+- 正文默认分区为：${MIDDAY_SECTION_LIST}
+- 中午版不要求一定是新闻汇总；可以围绕一个 topic、一本书、一部电影、一个展览、一个艺术家、一个哲学问题或一个湾区活动展开
+- 优先选择文学、哲学、艺术、电影、展览、湾区活动和生活方式拓展；不要被科技财经主线绑回去
+- 如果当天没有足够强的文学/哲学硬新闻，要明确承认，并改用高质量主题型拓展，不要硬凑 breaking news
+- 所有带时效性的事实、活动日期、开放时间、展期、地点等，都必须来自本次实时检索到的可核验来源
+- 每个条目都必须显式包含“来源：来源名 URL”一行；没有 URL 的内容不要写
+- 风格要像一封“值得中午看一眼的延展邮件”，不是第二封密集新闻简报
+- 可以写判断，但不要装作确定结论；重点是提供视角、线索和值得继续想/继续看的方向
+`.trim();
+}
+
+function buildMiddaySectionRules() {
+  return `
+分区规则：
+- 今日主题：每天只选 1 个最值得展开的对象；可以是 topic、书、电影、展览、艺术家、思想问题或湾区活动
+- 今日主题：每条使用固定结构并独立成行：
+  标题：
+  一句话结论：
+  摘要：
+  为什么值得关注：
+  来源：来源名 URL
+- 展开：用 1-2 个小段把主题讲开；优先回答“为什么是今天值得看”“它和日常生活或判断有什么关系”
+- 湾区活动：若有值得提前安排的本地活动、展览或周末去处，写 1 条；没有就省略
+- 顺手拓展：可选 1 条关联阅读、相关作品、相关展览或类似活动，帮助用户继续往下看
+- 如果当天最合适的是一本书或一部电影，可以把“今日主题”写成推荐卡片，而不是新闻卡片
+- 若当天适合只写一个主题，就宁可把全文做短，也不要强行凑多条
+- 中午版不写 Podcast、科技投资观察或关注清单，除非用户后续另行要求
+`.trim();
+}
+
+function buildCommonWritingRules() {
+  return `
+写作要求：
+- 每个分区之间空一行，避免大段密集文字
+- 不要把长 URL 混在段落里；来源链接单独成行
+- “今日速览”只写最重要的判断，不重复正文细节
+- 若某个分区缺少可信的最新抓取而无法成文，明确写“该分区缺少可核验的最新抓取，暂不展开”
+`.trim();
+}
+
+function buildCoreRules(date, edition) {
+  return edition === "midday" ? buildMiddayCoreRules(date) : buildMorningCoreRules(date);
+}
+
+function buildSectionRules(edition) {
+  return edition === "midday" ? buildMiddaySectionRules() : buildMorningSectionRules();
+}
+
 export function buildDailyBriefPrompt({
   date,
+  edition = "morning",
   researchContext,
   weatherContext,
   podcastContext,
@@ -114,15 +172,11 @@ export function buildDailyBriefPrompt({
   void weatherContext;
 
   return `
-${buildCoreRules(date)}
+${buildCoreRules(date, edition)}
 
-${buildSectionRules()}
+${buildSectionRules(edition)}
 
-写作要求：
-- 每个分区之间空一行，避免大段密集文字
-- 不要把长 URL 混在段落里；来源链接单独成行
-- “今日速览”只写最重要的判断，不重复正文细节
-- 若某个分区缺少可信的最新抓取而无法成文，明确写“该分区缺少可核验的最新抓取，暂不展开”；但 Podcast 无更新时只写“今日暂无新集”
+${buildCommonWritingRules()}
 
 ${buildPromptContext({ researchContext, podcastContext, quoteContext })}
 `.trim();
@@ -130,6 +184,7 @@ ${buildPromptContext({ researchContext, podcastContext, quoteContext })}
 
 export function buildGroundingRetryPrompt({
   date,
+  edition = "morning",
   researchContext,
   weatherContext,
   podcastContext,
@@ -138,8 +193,32 @@ export function buildGroundingRetryPrompt({
   void weatherContext;
   const compactResearchContext = summarizeResearchContext(researchContext);
 
+  if (edition === "midday") {
+    return `
+${buildCoreRules(date, edition)}
+
+这是重试版本。首要目标不是多写，而是确保每一条都来自本次实时检索。
+
+额外要求：
+- 今日主题只写 1 条
+- 若实时新闻不足，就转成主题型拓展，不要硬凑资讯
+- 湾区活动最多 1 条
+- 顺手拓展最多 1 条
+- 每个条目必须显式单独写出“来源：来源名 URL”
+- 若搜索结果不够可靠，宁可减少条目
+
+${buildSectionRules(edition)}
+
+${buildRetryContext({
+  compactResearchContext,
+  podcastContext,
+  quoteContext
+})}
+`.trim();
+  }
+
   return `
-${buildCoreRules(date)}
+${buildCoreRules(date, edition)}
 
 这是重试版本。首要目标不是多写，而是确保每一条都来自本次实时检索。
 
@@ -148,10 +227,9 @@ ${buildCoreRules(date)}
 - 宏观与市场只写 2 条最重要更新
 - 随机拓展只写 1 条
 - 每个条目必须显式单独写出“来源：来源名 URL”
-- 若某条内容没有可靠 URL，直接删除，不要保留
 - 若 Google Search 没有足够可信结果，宁可减少条数
 
-${buildSectionRules()}
+${buildSectionRules(edition)}
 
 ${buildRetryContext({
   compactResearchContext,
@@ -163,6 +241,7 @@ ${buildRetryContext({
 
 export function buildSourceFormatRetryPrompt({
   date,
+  edition = "morning",
   researchContext,
   weatherContext,
   podcastContext,
@@ -171,8 +250,36 @@ export function buildSourceFormatRetryPrompt({
   void weatherContext;
   const compactResearchContext = summarizeResearchContext(researchContext);
 
+  if (edition === "midday") {
+    return `
+${buildCoreRules(date, edition)}
+
+这是最后一次重试。唯一重点：每条内容都必须显式写出独立来源行，且格式稳定。
+
+强制输出格式：
+- 今日速览：3-5 条 bullet
+- 今日主题：1 条，严格使用
+  标题：
+  一句话结论：
+  摘要：
+  为什么值得关注：
+  来源：来源名 URL
+- 展开：1-2 段，至少 1 行“来源：”
+- 湾区活动：如有则 1 条，且严格包含“来源：”
+- 顺手拓展：如有则 1 条，且严格包含“来源：”
+
+不要省略任何“来源：”行。没有可靠 URL 的条目不要写。
+
+${buildRetryContext({
+  compactResearchContext,
+  podcastContext,
+  quoteContext
+})}
+`.trim();
+  }
+
   return `
-${buildCoreRules(date)}
+${buildCoreRules(date, edition)}
 
 这是最后一次重试。唯一重点：每条内容都必须显式写出独立来源行，且格式稳定。
 

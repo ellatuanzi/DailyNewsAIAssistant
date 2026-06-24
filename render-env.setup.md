@@ -8,7 +8,7 @@ Use [`render-env.template.txt`](/Users/qingcai/Documents/Morning%20News/render-e
 2. Fill in the real values locally
 3. In Render, create an Environment Group named `morning-news-shared`
 4. Use `Add from .env` to import `.env.render`
-5. Link that env group to both cron services
+5. Link that env group to all cron services
 
 ## Recommended values
 
@@ -20,12 +20,14 @@ RESEARCH_DIR=./research
 APP_ENV=production
 DAILY_BRIEF_MAX_PROMPT_CHARS=45000
 DAILY_BRIEF_MAX_OUTPUT_TOKENS=4000
+DAILY_BRIEF_MIN_SOURCE_LINES=6
 DAILY_BRIEF_ALLOW_AFTER_BUDGET_STOP=false
 ```
 
-## Add to both Render cron services
+## Add to all Render cron services
 
 - `morning-news-daily-brief`
+- `morning-news-midday-brief`
 - `morning-news-sync-check`
 
 The current [`render.yaml`](/Users/qingcai/Documents/Morning%20News/render.yaml) is already set up to reference the shared group:
@@ -53,9 +55,13 @@ GMAIL_SENDER
 RECIPIENT_EMAILS
 PENDING_SYNC_TO_EMAIL
 TIMEZONE
+BRIEF_EDITION
+BRIEF_SUBJECT_PREFIX
+BRIEF_SEND_HOUR
 RESEARCH_DIR
 STATE_DIR
 APP_ENV
+DAILY_BRIEF_MIN_SOURCE_LINES
 DAILY_BRIEF_MAX_PROMPT_CHARS
 DAILY_BRIEF_MAX_OUTPUT_TOKENS
 DAILY_BRIEF_ALLOW_AFTER_BUDGET_STOP
@@ -70,8 +76,12 @@ DAILY_BRIEF_ALLOW_AFTER_BUDGET_STOP
 - `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`: required when `STATE_PROVIDER=upstash-redis`
 - `GMAIL_SENDER`: legacy Gmail sender field; only needed when `EMAIL_PROVIDER=gmail`
 - `RECIPIENT_EMAILS`: comma-separated morning brief recipients
+- `BRIEF_EDITION`: use `morning` for the tech/markets edition, `midday` for the culture/topic edition
+- `BRIEF_SUBJECT_PREFIX`: default subject stem, for example `每日定制早报` or `每日中午拓展`
+- `BRIEF_SEND_HOUR`: local send hour in the configured timezone; defaults to `7` for morning and `12` for midday
 - `PENDING_SYNC_TO_EMAIL`: who receives the next-day GitHub sync confirmation email
 - `STATE_DIR`: local fallback path when `STATE_PROVIDER=file`
+- `DAILY_BRIEF_MIN_SOURCE_LINES`: fail closed if an edition returns too few source lines; morning default `6`, midday default `3`
 - `DAILY_BRIEF_ALLOW_AFTER_BUDGET_STOP=false`: if Gemini returns quota/billing exhaustion, the automation records a stop marker and future runs will not call the model again until you explicitly override
 - `DAILY_BRIEF_MAX_PROMPT_CHARS`: hard-fails if prompt/context grows unexpectedly
 - `DAILY_BRIEF_MAX_OUTPUT_TOKENS`: caps output size and therefore spend

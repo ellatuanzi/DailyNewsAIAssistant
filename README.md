@@ -1,10 +1,11 @@
 # Morning News Automation
 
-This repository packages the daily Chinese morning brief as a deployable Render cron workflow.
+This repository packages a two-edition Chinese email brief as a deployable Render cron workflow.
 
 ## What runs online
 
-- `daily-brief`: Generates and sends the daily email.
+- `daily-brief`: Generates and sends the morning tech/markets edition by default.
+- `daily-brief:midday`: Generates and sends the midday culture/topic edition.
 - `check-sync-prompts`: Looks for pending Notion research updates and asks whether to sync them into GitHub-backed research files.
 
 ## Current architecture
@@ -18,7 +19,8 @@ This repository packages the daily Chinese morning brief as a deployable Render 
 
 ## Render schedules
 
-- `*/30 * * * *`: poll every 30 minutes, send the brief only after local `07:00 America/Los_Angeles`
+- `*/30 * * * *`: poll every 30 minutes, send the morning edition only after local `07:00 America/Los_Angeles`
+- `*/30 * * * *`: poll every 30 minutes, send the midday edition only after local `12:00 America/Los_Angeles`
 - `*/30 * * * *`: poll every 30 minutes, send the sync confirmation only after local `09:00 America/Los_Angeles`
 
 This avoids daylight-saving drift because Render cron schedules use UTC according to the official docs:
@@ -53,6 +55,9 @@ This avoids daylight-saving drift because Render cron schedules use UTC accordin
 ### App config
 
 - `TIMEZONE`
+- `BRIEF_EDITION`
+- `BRIEF_SUBJECT_PREFIX`
+- `BRIEF_SEND_HOUR`
 - `RESEARCH_DIR`
 - `STATE_PROVIDER`
 - `STATE_DIR`
@@ -61,12 +66,13 @@ This avoids daylight-saving drift because Render cron schedules use UTC accordin
 - `PENDING_SYNC_TO_EMAIL`
 - `DAILY_BRIEF_MAX_PROMPT_CHARS`
 - `DAILY_BRIEF_MAX_OUTPUT_TOKENS`
+- `DAILY_BRIEF_MIN_SOURCE_LINES`
 - `DAILY_BRIEF_REQUIRE_GROUNDING`
 - `DAILY_BRIEF_ALLOW_AFTER_BUDGET_STOP`
 
 ## Repository layout
 
-- `src/`: runtime code
+- `src/`: runtime code for both morning and midday editions
 - `research/`: local research source files exported from Notion and cleaned for production use
 - `automation-2-*.md`: operating notes and requirements
 
@@ -101,16 +107,28 @@ Validate configuration:
 npm run validate-config
 ```
 
-Run the daily job locally:
+Run the morning job locally:
 
 ```bash
 npm run daily-brief
 ```
 
-Force one manual run even if today's brief was already sent:
+Run the midday job locally:
+
+```bash
+npm run daily-brief:midday
+```
+
+Force one manual run even if today's edition was already sent:
 
 ```bash
 npm run daily-brief -- --force
+```
+
+Force one midday run:
+
+```bash
+npm run daily-brief -- --edition midday --force
 ```
 
 Record a Notion update for next-day confirmation:
@@ -122,4 +140,6 @@ node src/cli.js record-notion-update --page-id stock-analysis --page-title "่ก็
 ## Notes
 
 - The current repo includes the deployment skeleton and operational interfaces.
+- Morning edition stays focused on tech, finance, stocks, and time-sensitive sports/news.
+- Midday edition is intentionally broader: it can be a topic, a book, a film, an exhibition, or a Bay Area activity, not necessarily a news roundup.
 - The existing local macOS TTS script remains available at `render_tts_audio.sh`, but Render cannot run macOS `say`. Online audio generation needs a cloud TTS replacement in a later phase.

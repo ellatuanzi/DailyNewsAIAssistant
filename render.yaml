@@ -14,6 +14,25 @@ services:
         value: America/Los_Angeles
       - key: APP_ENV
         value: production
+      - key: BRIEF_EDITION
+        value: morning
+  - type: cron
+    name: morning-news-midday-brief
+    runtime: node
+    plan: starter
+    schedule: "*/30 * * * *"
+    buildCommand: npm install
+    startCommand: npm run daily-brief:midday
+    envVars:
+      - fromGroup: morning-news-shared
+      - key: NODE_VERSION
+        value: 24.1.0
+      - key: TZ
+        value: America/Los_Angeles
+      - key: APP_ENV
+        value: production
+      - key: BRIEF_EDITION
+        value: midday
   - type: cron
     name: morning-news-sync-check
     runtime: node

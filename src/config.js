@@ -29,7 +29,31 @@ function normalizeStateProvider(value) {
   return (value || "file").trim().toLowerCase();
 }
 
-export function getConfig() {
+function normalizeEdition(value) {
+  const normalized = (value || "morning").trim().toLowerCase();
+  if (!["morning", "midday"].includes(normalized)) {
+    throw new Error(`Unsupported BRIEF_EDITION: ${value}. Expected "morning" or "midday".`);
+  }
+  return normalized;
+}
+
+function defaultEditionSettings(edition) {
+  if (edition === "midday") {
+    return {
+      subjectPrefix: "每日中午拓展",
+      sendHour: 12,
+      minSourceLines: 3
+    };
+  }
+
+  return {
+    subjectPrefix: "每日定制早报",
+    sendHour: 7,
+    minSourceLines: 6
+  };
+}
+
+export function getConfig(options = {}) {
   const recipientEmails = parseEmailList(
     optional("RECIPIENT_EMAILS", process.env.RECIPIENT_EMAIL || "")
   );
@@ -41,6 +65,8 @@ export function getConfig() {
   const emailProvider = optional("EMAIL_PROVIDER", "gmail");
   const emailSender = optional("EMAIL_SENDER", process.env.GMAIL_SENDER);
   const stateProvider = normalizeStateProvider(optional("STATE_PROVIDER", "file"));
+  const edition = normalizeEdition(options.edition || optional("BRIEF_EDITION", "morning"));
+  const defaults = defaultEditionSettings(edition);
 
   if (!emailSender) {
     throw new Error("Missing required environment variable: EMAIL_SENDER");
@@ -56,6 +82,12 @@ export function getConfig() {
     geminiModel: optional("GEMINI_MODEL", "gemini-2.5-flash"),
     geminiTemperature: Number(optional("GEMINI_TEMPERATURE", "0.2")),
     geminiUseGoogleSearch: booleanFlag(optional("GEMINI_USE_GOOGLE_SEARCH"), true),
+    briefEdition: edition,
+    briefSubjectPrefix: optional("BRIEF_SUBJECT_PREFIX", defaults.subjectPrefix),
+    briefSendHour: Number(optional("BRIEF_SEND_HOUR", String(defaults.sendHour))),
+    dailyBriefMinSourceLines: Number(
+      optional("DAILY_BRIEF_MIN_SOURCE_LINES", String(defaults.minSourceLines))
+    ),
     dailyBriefMaxPromptChars: Number(process.env.DAILY_BRIEF_MAX_PROMPT_CHARS || "45000"),
     dailyBriefMaxOutputTokens: Number(process.env.DAILY_BRIEF_MAX_OUTPUT_TOKENS || "4000"),
     dailyBriefRequireGrounding: booleanFlag(

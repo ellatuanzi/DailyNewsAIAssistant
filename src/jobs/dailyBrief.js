@@ -35,12 +35,12 @@ function countSourceLines(body) {
     .filter(isSourceEvidenceLine).length;
 }
 
-function validateDailyBriefBody(body) {
+function validateDailyBriefBody(body, minimumSources = 6) {
   const sourceLineCount = countSourceLines(body);
 
-  if (sourceLineCount < 6) {
+  if (sourceLineCount < minimumSources) {
     throw new Error(
-      `Daily brief body has too few source lines (${sourceLineCount}); refusing to send potentially unverified news.`
+      `Daily brief body has too few source lines (${sourceLineCount} < ${minimumSources}); refusing to send potentially unverified content.`
     );
   }
 }
@@ -111,11 +111,15 @@ async function generateDailyBrief({ gemini, config, subject, prompts }) {
         requireGrounding: prompt.requireGrounding ?? config.dailyBriefRequireGrounding
       });
 
-      const normalized = appendGroundingSources(generation.text, generation.grounding);
+      const normalized = appendGroundingSources(
+        generation.text,
+        generation.grounding,
+        config.dailyBriefMinSourceLines
+      );
       const sourceLineCount = normalized.sourceLineCount;
       const needsSourceFormatRetry =
         prompt.retryOnTooFewSourceLines === true &&
-        sourceLineCount < 6 &&
+        sourceLineCount < config.dailyBriefMinSourceLines &&
         attempt < prompts.length - 1;
 
       if (needsSourceFormatRetry) {
@@ -167,7 +171,7 @@ async function generateDailyBrief({ gemini, config, subject, prompts }) {
 
 export async function runDailyBrief(options = {}) {
   const force = options.force === true;
-  const config = getConfig();
+  const config = getConfig({ edition: options.edition });
 
   if (!config.geminiApiKey) {
     throw new Error("Missing required environment variable for daily brief: GEMINI_API_KEY");
@@ -178,14 +182,16 @@ export async function runDailyBrief(options = {}) {
   const stateStore = createAutomationStateStore(config);
   const briefState = createDailyBriefState({ stateStore, config });
   const date = todayInTimeZone(config.timezone);
-  const subject = `每日定制早报 - ${date}`;
+  const subject = `${config.briefSubjectPrefix} - ${date}`;
   const { hour } = localTimeParts(config.timezone);
   const recipients = config.recipientEmails;
 
-  if (!force && hour < 7) {
+  if (!force && hour < config.briefSendHour) {
     log("Daily brief trigger fired before local send window. Skipping.", {
       timezone: config.timezone,
-      localHour: hour
+      localHour: hour,
+      sendHour: config.briefSendHour,
+      edition: config.briefEdition
     });
     return;
   }
@@ -331,6 +337,7 @@ export async function runDailyBrief(options = {}) {
 
   const primaryPrompt = buildDailyBriefPrompt({
     date,
+    edition: config.briefEdition,
     researchContext,
     weatherContext,
     podcastContext,
@@ -338,6 +345,7 @@ export async function runDailyBrief(options = {}) {
   });
   const retryPrompt = buildGroundingRetryPrompt({
     date,
+    edition: config.briefEdition,
     researchContext,
     weatherContext,
     podcastContext,
@@ -345,6 +353,7 @@ export async function runDailyBrief(options = {}) {
   });
   const sourceFormatRetryPrompt = buildSourceFormatRetryPrompt({
     date,
+    edition: config.briefEdition,
     researchContext,
     weatherContext,
     podcastContext,
@@ -408,7 +417,7 @@ export async function runDailyBrief(options = {}) {
   }
 
   const body = generation.text;
-  validateDailyBriefBody(body);
+  validateDailyBriefBody(body, config.dailyBriefMinSourceLines);
 
   const recipientHeader = recipientsToSend.join(", ");
   const sent = await email.sendMail({
@@ -430,6 +439,7 @@ export async function runDailyBrief(options = {}) {
   );
 
   log("Daily brief sent.", {
+    edition: config.briefEdition,
     subject,
     recipients: recipientsToSend,
     messageId: sent.id,

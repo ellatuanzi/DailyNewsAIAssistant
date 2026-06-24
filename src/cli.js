@@ -27,7 +27,8 @@ async function main() {
   switch (command) {
     case "daily-brief":
       await runDailyBrief({
-        force: args.force === "true"
+        force: args.force === "true",
+        edition: args.edition
       });
       return;
     case "check-sync-prompts":

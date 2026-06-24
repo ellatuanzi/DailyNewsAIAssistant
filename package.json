@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "daily-brief": "node src/cli.js daily-brief",
+    "daily-brief:midday": "node src/cli.js daily-brief --edition midday",
     "check-sync-prompts": "node src/cli.js check-sync-prompts",
     "record-notion-update": "node src/cli.js record-notion-update",
     "validate-config": "node src/cli.js validate-config"
